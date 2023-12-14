@@ -5,36 +5,44 @@ contract RegistryContract {
     struct OracleNode {
         address addr;  // 链上地址
         string ipAddr; // 节点IP地址
-        bytes pubKey;  // schnorr公钥；
+        bytes[] pubKey;  // schnorr公钥；
         uint256 stake; // 质押
+        uint256 rank;  // 可信等级，即公钥数量
         uint256 index;
     }
 
-    uint256 private constant BLOCK_RANGE = 6;
+    struct AggregatorNode {
+        address addr;  // 链上地址
+        string ipAddr; // 节点IP地址
+    }
+
     uint256 public constant MIN_STAKE = 1 ether;
+    bool private hasAggregator;
 
     mapping(address => OracleNode) private oracleNodes;
+    mapping(address => AggregatorNode) private AggregatorNodes;
     address[] private oracleNodeIndices;
 
     event RegisterOracleNode(address indexed sender);
 
-    function registerOracleNode(string calldata _ipAddr, bytes calldata _pubKey)
+    function registerOracleNode(string calldata _ipAddr, bytes[] calldata _pubKey, uint256 rank)
         external
         payable
     {
         require(!oracleNodeIsRegistered(msg.sender), "already registered");
-        require(msg.value >= MIN_STAKE, "min stake too low");
+        require(msg.value >= rank * MIN_STAKE, "low stake");
+        require(_pubKey.length == rank, "key number error");
 
         OracleNode storage iopNode = oracleNodes[msg.sender];
         iopNode.addr = msg.sender;
         iopNode.ipAddr = _ipAddr;
         iopNode.pubKey = _pubKey;
         iopNode.stake = msg.value;
+        iopNode.rank = rank;
         iopNode.index = oracleNodeIndices.length;
         oracleNodeIndices.push(iopNode.addr);
 
         emit RegisterOracleNode(msg.sender);
-
     }
 
     function oracleNodeIsRegistered(address _addr) public view returns (bool) {
@@ -60,49 +68,6 @@ contract RegistryContract {
         return oracleNodes[oracleNodeIndices[_index]];
     }
 
-    function isAggregator(address _addr) public view returns (bool) {
-        /**
-         * As this method is a call, block.number refers to an already finalized block.
-         * But aggregators submit transactions that should be included in a new block,
-         * therefore the information of the aggregator of a finalized block is outdated.
-         */
-        return isAggregatorByBlock(_addr, block.number + 1);
-    }
-
-    function isAggregatorByBlock(address _addr, uint256 _block)
-        public
-        view
-        returns (bool)
-    {
-        OracleNode memory iopNode = findOracleNodeByAddress(_addr);
-        uint256 chosen = blockNumberMod(_block);
-        return
-            chosen >= iopNode.index * BLOCK_RANGE &&
-            chosen < (iopNode.index + 1) * BLOCK_RANGE;
-    }
-
-    function getAggregator() public view returns (OracleNode memory) {
-        /**
-         * As this method is a call, block.number refers to an already finalized block.
-         * But aggregators submit transactions that should be included in a new block,
-         * therefore the information of the aggregator of a finalized block is outdated.
-         */
-        return getAggregatorByBlock(block.number + 1);
-    }
-
-    function getAggregatorByBlock(uint256 _block)
-        public
-        view
-        returns (OracleNode memory)
-    {
-        uint256 i = blockNumberMod(_block) / BLOCK_RANGE;
-        return findOracleNodeByIndex(i);
-    }
-
-    function blockNumberMod(uint256 _block) internal view returns (uint256) {
-        return _block % (oracleNodeIndices.length * BLOCK_RANGE);
-    }
-
     function unregister(address unregisterAddr) 
         public
     {
@@ -118,5 +83,17 @@ contract RegistryContract {
     {
         delete oracleNodeIndices[oracleNodes[addr].index]; // 删除数组地址
         delete oracleNodes[addr]; // 删除map键值对
+    }
+
+    function registerAggregatorNode(string calldata ipAddr)
+        external
+        payable
+    {
+        require(!hasAggregator, "already registered");
+        hasAggregator = true;
+        AggregatorNode storage aggregator = AggregatorNodes[msg.sender];
+        aggregator.addr = msg.sender;
+        aggregator.ipAddr = ipAddr;
+        emit RegisterOracleNode(msg.sender);
     }
 }
