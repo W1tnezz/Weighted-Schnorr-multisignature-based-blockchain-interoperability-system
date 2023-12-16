@@ -6,6 +6,7 @@ type Config struct {
 	Contracts   ContractsConfig
 	Ethereum    EthereumConfig
 	IOTA        IOTAConfig
+	Reputation  int64
 }
 
 type ContractsConfig struct {

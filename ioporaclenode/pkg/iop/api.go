@@ -2,6 +2,7 @@ package iop
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -20,6 +21,18 @@ func (n *OracleNode) SendR(_ context.Context, request *SendRRequest) (*SendRResp
 	return &SendRResponse{}, nil
 }
 
+func (n *OracleNode) GetEnrollNodes(_ context.Context, request *SendGetEnrollNodesRequest) (*SendEnrollNodesResponse, error) {
+	enrollNodes, success := n.aggregator.getEnrollNodes(request.GetNodes)
+	if success {
+		enrollNodesBytes, err := json.Marshal(enrollNodes)
+		if err != nil {
+			return nil, err
+		}
+		return &SendEnrollNodesResponse{EnrollNodes: enrollNodesBytes, EnrollSuccess: success}, nil
+	}
+	return &SendEnrollNodesResponse{EnrollNodes: nil, EnrollSuccess: success}, nil
+}
+
 // 这个函数的功能是验证器来验证的过程，以及构造出应答
 func (n *OracleNode) Validate(ctx context.Context, request *ValidateRequest) (*ValidateResponse, error) {
 
@@ -36,7 +49,8 @@ func (n *OracleNode) Validate(ctx context.Context, request *ValidateRequest) (*V
 		result, err = n.validator.ValidateTransaction(
 			ctx,
 			common.BytesToHash(request.Hash),
-			request.minRank,
+			request.Size,
+			request.MinRank,
 		)
 	}
 

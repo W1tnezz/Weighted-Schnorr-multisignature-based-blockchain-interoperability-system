@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -28,9 +29,10 @@ type Aggregator struct {
 	account           common.Address
 	ecdsaPrivateKey   *ecdsa.PrivateKey
 	chainId           *big.Int
-	size              int64
-	enrollNodes       []uint64
-	rank              int64
+	size              int64 // 总的
+	enrollNodes       []int64
+	minRank           int64 // 每次节点的最小
+	currentSize       int64
 }
 
 func NewAggregator(
@@ -75,7 +77,6 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 		select {
 		case event := <-sink:
 			typ := ValidateRequest_Type(event.Typ)
-
 			log.Infof("Received ValidationRequest event for %s type with hash %s", typ, common.Hash(event.Hash))
 			isAggregator, err := a.registryContract.IsAggregator(nil, a.account)
 			o.isAggregator = isAggregator
@@ -95,6 +96,9 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 				//}
 				continue
 			}
+			a.size = event.Size.Int64()
+			a.minRank = event.MinRank.Int64()
+			a.currentSize = 0
 			if err := a.HandleValidationRequest(ctx, event, typ); err != nil {
 				log.Errorf("Handle ValidationRequest log: %v", err)
 			}
@@ -108,27 +112,24 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 
 // 报名函数
 
-//func (a *Aggregator) HandleEnrollRequest(ctx context.Context) error {
+// func (a *Aggregator) HandleEnrollRequest(ctx context.Context) error {
 //
-//}
-
+// }
 func (a *Aggregator) Enroll(deal *EnrollDeal) bool {
-	index := new(big.Int).SetBytes(deal.Index).Uint64()
+	index := new(big.Int).SetBytes(deal.Index).Int64()
 	isEnroll := a.isEnroll(index)
 
-	reputation := new(big.Int).SetBytes(deal.Reputation).Int64()
-
 	// 验证器向聚合器节点进行报名
-	if !isEnroll && a.rank < a.size {
+	if !isEnroll && a.minRank <= deal.Reputation && a.currentSize < a.size {
 		a.enrollNodes = append(a.enrollNodes, index)
-		a.rank += reputation
+		a.currentSize += deal.Reputation
 		return true
 	}
 	return false
 }
 
 // 判断是否报名
-func (a *Aggregator) isEnroll(index uint64) bool {
+func (a *Aggregator) isEnroll(index int64) bool {
 	for _, enrollNode := range a.enrollNodes {
 		if index == enrollNode {
 			return true
@@ -137,8 +138,17 @@ func (a *Aggregator) isEnroll(index uint64) bool {
 	return false
 }
 
+// 获取报名节点
+
+func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
+	if a.currentSize >= a.size {
+		return a.enrollNodes, true
+	}
+	return nil, false
+}
+
 func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleContractValidationRequest, typ ValidateRequest_Type) error {
-	result, MulSig, MulR, apk, _hash, err := a.AggregateValidationResults(ctx, event.Hash, typ)
+	result, message, MulSig, MulR, _hash, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
 	if err != nil {
 		return fmt.Errorf("aggregate validation results: %w", err)
@@ -156,7 +166,6 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	if err != nil {
 		return fmt.Errorf("signature tranform to big int: %w", err)
 	}
-	pubKey, err := PointToBig(apk)
 	if err != nil {
 		return fmt.Errorf("public key tranform to big int: %w", err)
 	}
@@ -170,9 +179,9 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, pubKey[0], pubKey[1], R[0], R[1], hash)
+		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, message, sig, R[0], R[1], hash, nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, pubKey[0], pubKey[1], R[0], R[1], hash)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, message, sig, R[0], R[1], hash, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -190,26 +199,25 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	return nil
 }
 
-func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Point, kyber.Scalar, error) {
+func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, []byte, kyber.Scalar, kyber.Point, kyber.Scalar, []common.Address, error) {
 
-	Signatures := make([]kyber.Scalar, 0)
-	Rs := make([]kyber.Point, 0)
-	J := make([][]byte, 0)
+	Signatures := make([][]kyber.Scalar, 0)
+	Rs := make([][]kyber.Point, 0)
+	PK := make([][][]byte, 0)
+	nodes := make([]common.Address, 0)
+	totalRank := int64(0)
 
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 	// 获取到了报名的节点数
 	time.Sleep(time.Duration(10) * time.Second)
 
-	enrollNodes, err := a.oracleContract.FindEnrollNodes()
-
-	if err != nil {
-		return false, nil, nil, nil, nil, fmt.Errorf("find enrollnodes: %w", err)
-	}
 	rand.Seed(time.Now().Unix())
 
-	for _, enrollNode := range enrollNodes {
-		node, err := a.registryContract.FindOracleNodeByAddress(nil, enrollNode)
+	for _, enrollNodeIndex := range a.enrollNodes {
+		enrollNode, err := a.registryContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodeIndex))
+		nodes = append(nodes, enrollNode.Addr)
+		node, err := a.registryContract.FindOracleNodeByAddress(nil, enrollNode.Addr)
 		conn, err := a.connectionManager.FindByAddress(node.Addr)
 		if err != nil {
 			log.Errorf("Find connection by address: %v", err)
@@ -222,8 +230,10 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 			client := NewOracleNodeClient(conn)
 			ctxTimeout, cancel := context.WithTimeout(ctx, 60*time.Second)
 			result, err := client.Validate(ctxTimeout, &ValidateRequest{
-				Type: typ,
-				Hash: txHash[:],
+				Type:    typ,
+				Hash:    txHash[:],
+				Size:    a.size,
+				MinRank: a.minRank,
 			})
 			if err != nil {
 				log.Errorf("Validate %s: %v", typ, err)
@@ -238,20 +248,14 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 
 			mutex.Lock()
 			if result.Valid {
-				s := a.suite.G1().Scalar()
-				err := s.UnmarshalBinary(result.Signature)
-				if err != nil {
-					fmt.Errorf("s transform to Scalar: %w", err)
-				}
-				Signatures = append(Signatures, s) //获取到所有的签名
-				RPoint := a.suite.G1().Point()
-				err = RPoint.UnmarshalBinary(result.R)
-				if err != nil {
-					fmt.Errorf("R transform to Point: %w", err)
-				}
-				Rs = append(Rs, RPoint)
-
-				J = append(J, node.PubKey)
+				totalRank += result.Reputation
+				sI := make([]kyber.Scalar, result.Reputation)
+				RI := make([]kyber.Point, result.Reputation)
+				json.Unmarshal(result.Signature, &sI)
+				json.Unmarshal(result.R, &RI)
+				Signatures = append(Signatures, sI) //获取到所有的签名
+				Rs = append(Rs, RI)
+				PK = append(PK, enrollNode.PubKeys)
 			}
 			mutex.Unlock()
 		}()
@@ -259,54 +263,77 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 
 	wg.Wait()
 
-	R := a.suite.G1().Point().Null()
-	for i := 0; i < len(Rs); i++ {
-		R.Add(R, Rs[i])
+	S := make([]byte, (totalRank+1)*PUBKEY_LENGTH)
+	index := PUBKEY_LENGTH
+	for i := 0; i < len(PK); i++ {
+		for j := 0; j < len(PK[i]); j++ {
+			for k := 0; k < len(PK[i][j]); k++ {
+				S[index] = PK[i][j][k]
+				index++
+			}
+		}
 	}
-	PK, err := a.registryContract.GetAllPk()
-	if err != nil {
-		fmt.Errorf("get PK: %w", err)
-	}
-	hash_1 := sha256.New()
-	message, err := encodeValidateResult(txHash, true, typ)
 
-	gt := hash_1.Sum(bytes.Join(PK, []byte("")))
-
-	m := make([][]byte, 3)
-	m[0] = message
-	m[1], err = R.MarshalBinary()
-	m[2] = gt
-	hash := sha256.New()
-	e := hash.Sum(bytes.Join(m, []byte("")))
 	MulSignature := a.suite.G1().Scalar().Zero()
 	MulR := a.suite.G1().Point().Null()
-	apk := a.suite.G1().Point().Null()
-
-	for i := 0; i < len(J); i++ {
-		pub := a.suite.G1().Point()
-		err = pub.UnmarshalBinary(J[i])
-		verify_R := Rs[i].Clone()
-		verify_R.Add(verify_R, a.suite.G1().Point().Mul(a.suite.G1().Scalar().SetBytes(e), pub))
-		S2 := a.suite.G1().Point().Mul(Signatures[i], nil)
-		if !verify_R.Equal(S2) {
-			return false, nil, nil, nil, nil, fmt.Errorf("签名验证失败 ，该签名的公钥为：", J[i])
+	R := a.suite.G1().Point().Null()
+	for i := 0; i < len(PK); i++ {
+		for j := 0; j < len(PK[i]); j++ {
+			for k := 0; k < PUBKEY_LENGTH; k++ {
+				S[k] = PK[i][j][k]
+			}
+			hash1 := sha256.New()
+			a := hash1.Sum(S)
+			MulSignature.add(MulSignature, a.suite.G1().Scalar().Mul(a, Signatures[i][j]))
+			MulR.Add(MulR, a.suite.G1().Point().Mul(a, Rs[i][j]))
+			R.Add(R, Rs[i][j])
 		}
-		hash := sha256.New()
-		h := make([][]byte, 3)
-		h[0] = J[i]
-		h[1] = bytes.Join(J, []byte(""))
-		h[2] = bytes.Join(PK, []byte(""))
-		a_j := hash.Sum(bytes.Join(h, []byte("")))
-		aScalar := a.suite.G1().Scalar().SetBytes(a_j)
-
-		MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i]))
-		MulR.Add(MulR, a.suite.G1().Point().Mul(aScalar, Rs[i]))
-		apk.Add(apk, a.suite.G1().Point().Mul(aScalar, pub))
-
 	}
+
+	message, _ := encodeValidateResult(txHash, true, typ)
+	//
+	//gt := hash_1.Sum(bytes.Join(PK, []byte("")))
+	//
+	//m := make([][]byte, 3)
+	//m[0] = message
+	//m[1], err = R.MarshalBinary()
+	//m[2] = gt
+	//hash := sha256.New()
+	//e := hash.Sum(bytes.Join(m, []byte("")))
+	//MulSignature := a.suite.G1().Scalar().Zero()
+	//MulR := a.suite.G1().Point().Null()
+	//apk := a.suite.G1().Point().Null()
+	//
+	//for i := 0; i < len(J); i++ {
+	//	pub := a.suite.G1().Point()
+	//	err = pub.UnmarshalBinary(J[i])
+	//	verify_R := Rs[i].Clone()
+	//	verify_R.Add(verify_R, a.suite.G1().Point().Mul(a.suite.G1().Scalar().SetBytes(e), pub))
+	//	S2 := a.suite.G1().Point().Mul(Signatures[i], nil)
+	//	if !verify_R.Equal(S2) {
+	//		return false, nil, nil, nil, nil, fmt.Errorf("签名验证失败 ，该签名的公钥为：", J[i])
+	//	}
+	//	hash := sha256.New()
+	//	h := make([][]byte, 3)
+	//	h[0] = J[i]
+	//	h[1] = bytes.Join(J, []byte(""))
+	//	h[2] = bytes.Join(PK, []byte(""))
+	//	a_j := hash.Sum(bytes.Join(h, []byte("")))
+	//	aScalar := a.suite.G1().Scalar().SetBytes(a_j)
+	//
+	//	MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i]))
+	//	MulR.Add(MulR, a.suite.G1().Point().Mul(aScalar, Rs[i]))
+	//	apk.Add(apk, a.suite.G1().Point().Mul(aScalar, pub))
+	//
+	//}
+	m := make([][]byte, 2)
+	m[0] = message
+	m[1], _ = R.MarshalBinary()
+	hash := sha256.New()
+	e := hash.Sum(bytes.Join(m, []byte("")))
 	_hash := a.suite.G1().Scalar().SetBytes(e)
 
-	return true, MulSignature, MulR, apk, _hash, nil
+	return true, message, MulSignature, MulR, _hash, nodes, nil
 
 }
 

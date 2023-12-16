@@ -21,7 +21,7 @@ message SendEnrollRequest {
 }
 
 message EnrollDeal {
-  bytes reputation = 1;
+  int64 reputation = 1;
   bytes index = 2;
 }
 
@@ -36,6 +36,7 @@ message SendGetEnrollNodesRequest {
 
 message SendEnrollNodesResponse {
   bytes EnrollNodes = 1;
+  bool EnrollSuccess = 2;
 }
 
 
@@ -47,6 +48,8 @@ message ValidateRequest {
   }
   Type type = 1;
   bytes hash = 2;
+  int64 size = 3;
+  int64 minRank = 4;
 }
 
 message ValidateResponse {
@@ -54,6 +57,8 @@ message ValidateResponse {
   bool valid = 2;
   int64 blockNumber = 3;
   bytes signature = 4;
+  bytes R = 5;
+  int64 reputation = 6;
 }
 
 service OracleNode {

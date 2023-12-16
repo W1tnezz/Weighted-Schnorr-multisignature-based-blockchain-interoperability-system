@@ -39,7 +39,7 @@ type OracleNode struct {
 	aggregator        *Aggregator
 	isAggregator      bool
 	chainId           *big.Int
-	reputation        int // 信誉值
+	reputation        int64
 }
 
 func NewOracleNode(c Config) (*OracleNode, error) {
@@ -104,9 +104,9 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	}
 	schnorrPrivateKey := make([]kyber.Scalar, 0)
 
-	reputation := int(c.reputation)
+	reputation := int64(c.Reputation)
 
-	for i := 0; i < reputation; i++ {
+	for i := int64(0); i < reputation; i++ {
 		schnorrPrivateKey = append(schnorrPrivateKey, suite.G1().Scalar().Pick(random.New()))
 	}
 	if err != nil {
@@ -230,7 +230,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake
 
 	if !isRegistered {
-		_, err = n.registryContract.RegisterOracleNode(auth, ipAddr, b)
+		_, err = n.registryContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
 		}

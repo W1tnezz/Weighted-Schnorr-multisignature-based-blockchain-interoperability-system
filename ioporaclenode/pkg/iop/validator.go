@@ -35,6 +35,7 @@ type ValidateResult struct {
 	blockNumber *big.Int
 	signature   []byte
 	R           []byte
+	reputation  int64
 }
 
 type Validator struct {
@@ -51,7 +52,7 @@ type Validator struct {
 	mqttTopic         []byte
 	iotaClient        *iota.NodeHTTPAPIClient
 	schnorrPrivateKey []kyber.Scalar
-	reputation        int
+	reputation        int64
 }
 
 func NewValidator(
@@ -66,7 +67,8 @@ func NewValidator(
 	mqttTopic []byte,
 	iotaClient *iota.NodeHTTPAPIClient,
 	schnorrPrivateKey []kyber.Scalar,
-	reputation int,
+	reputation int64,
+
 ) *Validator {
 	return &Validator{
 		suite:             suite,
@@ -80,6 +82,7 @@ func NewValidator(
 		mqttTopic:         mqttTopic,
 		iotaClient:        iotaClient,
 		schnorrPrivateKey: schnorrPrivateKey,
+		reputation:        reputation,
 	}
 }
 
@@ -87,34 +90,63 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 	v.RAll = make(map[uint64]kyber.Point)
 
 	//此时要获取所有的报名节点，要考虑是否达到阈值，循环质询
+	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
 
-	//enrollNodes, err := v.oracleContract.FindEnrollNodes()
+	aggregator, _ := v.registryContract.GetAggregator(nil)
+
+	var enrollNodes []int64
+	for true {
+		conn, err := v.connectionManager.FindByAddress(aggregator)
+		if err != nil {
+			log.Errorf("Find connection by address: %v", err)
+		}
+		client := NewOracleNodeClient(conn)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		request := &SendGetEnrollNodesRequest{
+			GetNodes: true,
+		}
+
+		log.Infof("Sending getEnrollNodesRequest to Aggregator %d", node.Index)
+		result, err := client.GetEnrollNodes(ctx, request)
+		if err != nil {
+			log.Errorf("Send EnrollRequest: %v", err)
+		}
+		cancel()
+
+		if result.EnrollSuccess {
+			json.Unmarshal(result.EnrollNodes, &enrollNodes)
+			break
+		}
+		time.Sleep(5 * time.Second)
+
+	}
 
 	// 先产生自己的R，然后在等待一段时间，随后广播, 构造R序列
-	R_i := make([]kyber.Point, 0)
-	for i := 0; i < v.reputation; i++ {
+	RI := make([]kyber.Point, 0)
+	rI := make([]kyber.Scalar, 0)
+	for i := int64(0); i < v.reputation; i++ {
 		r := v.suite.G1().Scalar().Pick(random.New())
-		R_i = append(R_i, v.suite.G1().Point().Mul(r, nil))
+		rI = append(rI, r)
+		RI = append(RI, v.suite.G1().Point().Mul(r, nil))
 	}
 
-	R_Pi := v.suite.G1().Point().Null()
+	RPI := v.suite.G1().Point().Null()
 
-	for _, R := range R_i {
-		R_Pi.Add(R_Pi, R)
+	for _, R := range RI {
+		RPI.Add(RPI, R)
 	}
 
-	Rbytes, err := R_Pi.MarshalBinary()
+	RPIbytes, err := RPI.MarshalBinary()
 
 	if err != nil {
 		fmt.Errorf("marshal R_Pi error : %v", err)
 	}
 	time.Sleep(5 * time.Second)
 
-	v.sendR(enrollNodes, Rbytes)
+	v.sendR(enrollNodes, RPIbytes)
 
 	// 此时需要获取到其他人的R,此时需要等待其他人广播完成，获取完全足够的R
 	timeout := time.After(Timeout)
-	count, err := v.oracleContract.CountEnrollNodes(nil)
 loop:
 	for {
 		select {
@@ -122,38 +154,40 @@ loop:
 			fmt.Errorf("Timeout")
 			break loop
 		default:
-			if count.Int64() == int64(len(v.RAll)) {
+			if len(enrollNodes) == len(v.RAll) {
 				break loop
 			}
 			time.Sleep(50 * time.Millisecond)
 		}
 	}
 
-	hash_1 := sha256.New()
-	gt := hash_1.Sum(bytes.Join(PK, []byte("")))
 	R := v.suite.G1().Point().Null()
 	for key := range v.RAll {
 		R.Add(R, v.RAll[key])
 	}
-	m := make([][]byte, 3)
+	m := make([][]byte, 2)
 	m[0] = message
 	m[1], err = R.MarshalBinary()
-	m[2] = gt
 	hash := sha256.New()
 	e := hash.Sum(bytes.Join(m, []byte("")))
-	s := v.suite.G1().Scalar().Add(r, v.suite.G1().Scalar().Mul(v.suite.G1().Scalar().SetBytes(e), v.schnorrPrivateKey))
-	signature := make([][]byte, 2)
-	signature[0], err = s.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("s transform to Bytes: %w", err)
+
+	s := make([]kyber.Scalar, 0)
+	for i := int64(0); i < v.reputation; i++ {
+		sI := v.suite.G1().Scalar().Add(rI[i], v.suite.G1().Scalar().Mul(v.suite.G1().Scalar().SetBytes(e), v.schnorrPrivateKey[i]))
+		s = append(s, sI)
 	}
-	signature[1] = Rbytes
+
+	signature := make([][]byte, 2)
+
+	signature[0], err = json.Marshal(s)
+	signature[1], err = json.Marshal(RI)
+
 	return signature, nil
 }
 
 func (v *Validator) ListenAndProcess(o *OracleNode) error {
 
-	// 启动协程监听并处理DKG过程中其他节点发送的Deal
+	// 启动协程监听并处理过程中其他节点发送的Deal
 	go func() {
 		if err := v.ListenAndProcessResponse(o); err != nil {
 			log.Errorf("Listen and process response: %v", err)
@@ -236,13 +270,14 @@ func (v *Validator) BroadcastResponse(R *RDeal) error {
 	return nil
 }
 
-func (v *Validator) sendR(nodes []common.Address, R []byte) {
+func (v *Validator) sendR(enrollNodes []int64, R []byte) {
 	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
-	for i := range nodes {
-		if nodes[i] == v.account {
+	for i := range enrollNodes {
+		if enrollNodes[i] == node.Index.Int64() {
 			continue
 		}
-		conn, err := v.connectionManager.FindByAddress(nodes[i])
+		enrollNode, _ := v.registryContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodes[i]))
+		conn, err := v.connectionManager.FindByAddress(enrollNode.Addr)
 		if err != nil {
 			log.Errorf("Find connection by address: %v", err)
 			continue
@@ -253,7 +288,7 @@ func (v *Validator) sendR(nodes []common.Address, R []byte) {
 		request := &SendRRequest{
 			R: &RDeal{R: R, Index: node.Index.Bytes()},
 		}
-		log.Infof("Sending R to node %d", i)
+		log.Infof("Sending R to node %d", enrollNodes[i])
 		if _, err := client.SendR(ctx, request); err != nil {
 			log.Errorf("Send deal: %v", err)
 		}
@@ -261,14 +296,36 @@ func (v *Validator) sendR(nodes []common.Address, R []byte) {
 	}
 }
 
-func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, minRank int) (*ValidateResult, error) {
+func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, size int64, minRank int64) (*ValidateResult, error) {
 	if v.reputation < minRank {
 		return nil, fmt.Errorf("该节点不参与")
 	}
 
 	// 此时，该节点参与，但是需要先向聚合器报名，此时需要发送自己的信誉值
+	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
 
-	aggregator, _ := v.registryContract.GetAggregator()
+	aggregator, _ := v.registryContract.GetAggregator(nil)
+	conn, err := v.connectionManager.FindByAddress(aggregator)
+	if err != nil {
+		log.Errorf("Find connection by address: %v", err)
+	}
+	client := NewOracleNodeClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	request := &SendEnrollRequest{
+		Enroll: &EnrollDeal{Reputation: v.reputation, Index: node.Index.Bytes()},
+	}
+
+	log.Infof("Sending EnrollRequest to Aggregator %d", node.Index)
+	result, err := client.Enroll(ctx, request)
+	if err != nil {
+		log.Errorf("Send EnrollRequest: %v", err)
+	}
+	cancel()
+
+	if !result.EnrollSuccess {
+		log.Infof("node enroll fail %d", node.Index)
+		return nil, nil
+	}
 
 	receipt, err := v.ethClient.TransactionReceipt(ctx, hash)
 	found := !errors.Is(err, ethereum.NotFound)
@@ -309,6 +366,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, m
 		receipt.BlockNumber,
 		sig[0],
 		sig[1],
+		v.reputation,
 	}, nil
 }
 
@@ -353,5 +411,6 @@ func (v *Validator) ValidateBlock(ctx context.Context, hash common.Hash) (*Valid
 		blockNumber,
 		sig[0],
 		sig[1],
+		v.reputation,
 	}, nil
 }
