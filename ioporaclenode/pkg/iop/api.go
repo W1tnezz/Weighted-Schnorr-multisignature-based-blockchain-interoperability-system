@@ -1,26 +1,17 @@
 package iop
 
 import (
-	"bytes"
 	"context"
-
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (n *OracleNode) Chanllenge(_ context.Context, request *ChanllengeRequest) (*ChanllengeResponse, error) {
-	//这个函数的中，此时验证器需要构造出一个证明，并且将证明作为结果返回,当前的问题就是找出 ：这个函数的调用场景
-	var proof []byte
-	if bytes.Equal(request.Type, []byte("chanllenge_result")) {
-		proof = []byte("This is a proof for result") // 这是关于消息的回复
-	} else if bytes.Equal(request.Type, []byte("chanllenge_lazyNode")) {
-		proof = []byte("This is a proof for lazyNode") //这是关于是否工作的回复
-	} else {
-		proof = []byte("This is a proof for default") //这是关于是否工作的回复
-	}
-	return &ChanllengeResponse{Proof: proof}, nil
+func (n *OracleNode) Enroll(_ context.Context, request *SendEnrollRequest) (*SendEnrollResponse, error) {
+	//	此时接收到报名请求
+	success := n.aggregator.Enroll(request.Enroll)
+	return &SendEnrollResponse{EnrollSuccess: success}, nil
 }
 
 func (n *OracleNode) SendR(_ context.Context, request *SendRRequest) (*SendRResponse, error) {
@@ -45,6 +36,7 @@ func (n *OracleNode) Validate(ctx context.Context, request *ValidateRequest) (*V
 		result, err = n.validator.ValidateTransaction(
 			ctx,
 			common.BytesToHash(request.Hash),
+			request.minRank,
 		)
 	}
 

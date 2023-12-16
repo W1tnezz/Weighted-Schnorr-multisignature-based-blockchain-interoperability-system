@@ -50,7 +50,8 @@ type Validator struct {
 	mqttClient        mqtt.Client
 	mqttTopic         []byte
 	iotaClient        *iota.NodeHTTPAPIClient
-	schnorrPrivateKey kyber.Scalar
+	schnorrPrivateKey []kyber.Scalar
+	reputation        int
 }
 
 func NewValidator(
@@ -64,7 +65,8 @@ func NewValidator(
 	mqttClient mqtt.Client,
 	mqttTopic []byte,
 	iotaClient *iota.NodeHTTPAPIClient,
-	schnorrPrivateKey kyber.Scalar,
+	schnorrPrivateKey []kyber.Scalar,
+	reputation int,
 ) *Validator {
 	return &Validator{
 		suite:             suite,
@@ -81,34 +83,37 @@ func NewValidator(
 	}
 }
 
-// 公私钥就直接使用以太坊的公私钥
 func (v *Validator) Sign(message []byte) ([][]byte, error) {
 	v.RAll = make(map[uint64]kyber.Point)
-	PK, err := v.registryContract.GetAllPk()
-	if err != nil {
-		return nil, fmt.Errorf("get PK: %w", err)
+
+	//此时要获取所有的报名节点，要考虑是否达到阈值，循环质询
+
+	//enrollNodes, err := v.oracleContract.FindEnrollNodes()
+
+	// 先产生自己的R，然后在等待一段时间，随后广播, 构造R序列
+	R_i := make([]kyber.Point, 0)
+	for i := 0; i < v.reputation; i++ {
+		r := v.suite.G1().Scalar().Pick(random.New())
+		R_i = append(R_i, v.suite.G1().Point().Mul(r, nil))
 	}
 
-	enrollNodes, err := v.oracleContract.FindEnrollNodes()
-	if err != nil {
-		return nil, fmt.Errorf("get enrollNodes: %w", err)
+	R_Pi := v.suite.G1().Point().Null()
+
+	for _, R := range R_i {
+		R_Pi.Add(R_Pi, R)
 	}
 
-	// 先产生自己的R，然后在等待一段时间，随后广播
+	Rbytes, err := R_Pi.MarshalBinary()
 
-	r := v.suite.G1().Scalar().Pick(random.New())
-	R_i := v.suite.G1().Point().Mul(r, nil) // R = g ** r
-	Rbytes, err := R_i.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("R transform to Bytes: %w", err)
+		fmt.Errorf("marshal R_Pi error : %v", err)
 	}
-
 	time.Sleep(5 * time.Second)
 
 	v.sendR(enrollNodes, Rbytes)
 
 	// 此时需要获取到其他人的R,此时需要等待其他人广播完成，获取完全足够的R
-	timeout := time.After(DkgTimeout)
+	timeout := time.After(Timeout)
 	count, err := v.oracleContract.CountEnrollNodes(nil)
 loop:
 	for {
@@ -143,17 +148,6 @@ loop:
 		return nil, fmt.Errorf("s transform to Bytes: %w", err)
 	}
 	signature[1] = Rbytes
-	// node, err := v.registryContract.FindOracleNodeByAddress(nil, v.account)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("169 : %w", err)
-	// }
-	// pub := v.suite.G1().Point()
-	// err = pub.UnmarshalBinary(node.PubKey)
-	// S1 := R_i.Add(R_i, v.suite.G1().Point().Mul(v.suite.G1().Scalar().SetBytes(e), pub))
-	// S2 := v.suite.G1().Point().Mul(s, nil)
-	// if S1.Equal(S2) {
-	// 	fmt.Println("签名验证成功")
-	// }
 	return signature, nil
 }
 
@@ -267,7 +261,15 @@ func (v *Validator) sendR(nodes []common.Address, R []byte) {
 	}
 }
 
-func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash) (*ValidateResult, error) {
+func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, minRank int) (*ValidateResult, error) {
+	if v.reputation < minRank {
+		return nil, fmt.Errorf("该节点不参与")
+	}
+
+	// 此时，该节点参与，但是需要先向聚合器报名，此时需要发送自己的信誉值
+
+	aggregator, _ := v.registryContract.GetAggregator()
+
 	receipt, err := v.ethClient.TransactionReceipt(ctx, hash)
 	found := !errors.Is(err, ethereum.NotFound)
 	if err != nil {
@@ -294,7 +296,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash) (
 		return nil, fmt.Errorf("dist key share: %w", err)
 	}
 
-	// 以下是进行签名，此时要修改为schnorr签名
+	// 以下是进行签名，
 
 	sig, err := v.Sign(message)
 	if err != nil {

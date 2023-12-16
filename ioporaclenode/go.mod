@@ -10,6 +10,7 @@ require (
 	github.com/coreos/etcd v3.3.13+incompatible // indirect
 	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/ethereum/go-ethereum v1.11.4
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/iotaledger/hive.go v0.0.0-20220210121915-5c76c0ccc668
 	github.com/iotaledger/iota.go/v2 v2.0.1
 	github.com/sirupsen/logrus v1.9.0
@@ -18,7 +19,8 @@ require (
 	go.dedis.ch/kyber/v3 v3.0.13
 	golang.org/x/sys v0.5.0
 	google.golang.org/grpc v1.40.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0 // indirect
+	google.golang.org/protobuf v1.31.0
 	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200619000410-60c24ae608a6 // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
 	gotest.tools v2.2.0+incompatible // indirect

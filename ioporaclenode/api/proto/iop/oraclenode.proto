@@ -1,14 +1,43 @@
 syntax = "proto3";
 
 package iop;
-option go_package = ".;iop";
+option go_package = "./iop";
 
-message SendDealRequest {
-  Deal deal = 1;
+message SendRRequest {
+  RDeal R = 1;
 }
 
-message SendDealResponse {
+message RDeal {
+  bytes R = 1;
+  bytes index = 2;
 }
+
+message SendRResponse {
+}
+
+
+message SendEnrollRequest {
+  EnrollDeal Enroll = 1;
+}
+
+message EnrollDeal {
+  bytes reputation = 1;
+  bytes index = 2;
+}
+
+message SendEnrollResponse {
+  bool EnrollSuccess = 1;
+}
+
+
+message SendGetEnrollNodesRequest {
+  bool getNodes = 1;
+}
+
+message SendEnrollNodesResponse {
+  bytes EnrollNodes = 1;
+}
+
 
 message ValidateRequest {
   enum Type {
@@ -20,19 +49,6 @@ message ValidateRequest {
   bytes hash = 2;
 }
 
-message Deal {
-  uint32 index = 1;
-  EncryptedDeal deal = 2;
-  bytes signature = 3;
-}
-
-message EncryptedDeal {
-  bytes dhKey = 1;
-  bytes signature = 2;
-  bytes nonce = 3;
-  bytes cipher = 4;
-}
-
 message ValidateResponse {
   bytes hash = 1;
   bool valid = 2;
@@ -41,6 +57,8 @@ message ValidateResponse {
 }
 
 service OracleNode {
-  rpc SendDeal(SendDealRequest) returns (SendDealResponse);
+  rpc SendR(SendRRequest) returns (SendRResponse);
   rpc Validate(ValidateRequest) returns (ValidateResponse);
+  rpc Enroll(SendEnrollRequest) returns (SendEnrollResponse);
+  rpc GetEnrollNodes(SendGetEnrollNodesRequest) returns (SendEnrollNodesResponse);
 }

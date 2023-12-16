@@ -32,13 +32,14 @@ type OracleNode struct {
 	oracleContract    *OracleContractWrapper
 	suite             suites.Suite
 	ecdsaPrivateKey   *ecdsa.PrivateKey
-	schnorrPrivateKey kyber.Scalar
+	schnorrPrivateKey []kyber.Scalar
 	account           common.Address
 	connectionManager *ConnectionManager
 	validator         *Validator
 	aggregator        *Aggregator
 	isAggregator      bool
 	chainId           *big.Int
+	reputation        int // 信誉值
 }
 
 func NewOracleNode(c Config) (*OracleNode, error) {
@@ -101,7 +102,13 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	if err != nil {
 		return nil, fmt.Errorf("hex to ecdsa: %v", err)
 	}
-	schnorrPrivateKey := suite.G1().Scalar().Pick(random.New())
+	schnorrPrivateKey := make([]kyber.Scalar, 0)
+
+	reputation := int(c.reputation)
+
+	for i := 0; i < reputation; i++ {
+		schnorrPrivateKey = append(schnorrPrivateKey, suite.G1().Scalar().Pick(random.New()))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("hex to scalar: %v", err)
 	}
@@ -125,6 +132,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		mqttTopic,
 		iotaAPI,
 		schnorrPrivateKey,
+		reputation,
 	)
 	aggregator := NewAggregator(
 		suite,
@@ -153,6 +161,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		aggregator:        aggregator,
 		isAggregator:      false,
 		chainId:           chainId,
+		reputation:        reputation,
 	}
 	RegisterOracleNodeServer(server, node)
 
@@ -196,10 +205,17 @@ func (n *OracleNode) register(ipAddr string) error {
 		return fmt.Errorf("is registered: %w", err)
 	}
 
-	schnorrPublicKey := n.suite.Point().Mul(n.schnorrPrivateKey, nil)
-	b, err := schnorrPublicKey.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("marshal bls public key: %v", err)
+	schnorrPublicKey := make([]kyber.Point, 0)
+	for _, schnorrPrivateKey := range n.schnorrPrivateKey {
+		schnorrPublicKey = append(schnorrPublicKey, n.suite.Point().Mul(schnorrPrivateKey, nil))
+	}
+	b := make([][]byte, 0)
+	for _, publicKey := range schnorrPublicKey {
+		publicKeyByte, err := publicKey.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("marshal public key: %v", err)
+		}
+		b = append(b, publicKeyByte)
 	}
 
 	minStake, err := n.registryContract.MINSTAKE(nil)

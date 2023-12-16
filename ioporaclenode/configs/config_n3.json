@@ -15,5 +15,6 @@
     "rest": "https://api.lb-0.h.chrysalis-devnet.iota.cafe",
     "mqtt": "tcp://mqtt.lb-0.h.chrysalis-devnet.iota.cafe:1883",
     "topic": "iop"
-  }
+  },
+  "reputation":10
 }
