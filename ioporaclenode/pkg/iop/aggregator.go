@@ -283,9 +283,10 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 				S[k] = PK[i][j][k]
 			}
 			hash1 := sha256.New()
-			a := hash1.Sum(S)
-			MulSignature.add(MulSignature, a.suite.G1().Scalar().Mul(a, Signatures[i][j]))
-			MulR.Add(MulR, a.suite.G1().Point().Mul(a, Rs[i][j]))
+			aI := hash1.Sum(S)
+			aScalar := a.suite.G1().Scalar().SetBytes(aI)
+			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
+			MulR.Add(MulR, a.suite.G1().Point().Mul(aScalar, Rs[i][j]))
 			R.Add(R, Rs[i][j])
 		}
 	}
@@ -337,6 +338,6 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 
 }
 
-func (a *Aggregator) SetThreshold(threshold int) {
-	a.t = threshold
-}
+//func (a *Aggregator) SetThreshold(threshold int) {
+//	a.t = threshold
+//}
