@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity  ^0.8.0;
+pragma solidity  >0.8.0;
 
 import "./RegistryContract.sol";
 import "./crypto/Schnorr.sol";
@@ -79,13 +79,14 @@ contract OracleContract {
         
         
         uint256 totalRank = 0;
-        bytes[][] memory allPubKeys = new bytes[][](validators.length);
+        bytes1[33][][] memory allPubKeys = new bytes1[33][][](validators.length);
         for(uint32 i = 0 ; i < validators.length ; i++){
             // 验证单个节点的信誉值；
             uint256 rank = registryContract.getNodeRank(validators[i]);
             require(rank >= currentRank, "low singal rank");
             totalRank += rank;
-            bytes[] memory pubKeys = registryContract.getNodePublicKeys(validators[i]);
+            
+            bytes1[33][] memory pubKeys = registryContract.getNodePublicKeys(validators[i]);
             allPubKeys[i] = pubKeys;
         }
         require(totalRank >= currentRank, "low total rank");
@@ -109,10 +110,12 @@ contract OracleContract {
             for(uint32 j = 0; j < allPubKeys[i].length; j++){
                 uint256 tempX;
                 uint256 tempY;
-                (tempX, tempY) = BN256G1.fromCompressed(allPubKeys[i][j]);
-                for(uint32 k = 0; k < PUBKEY_LENGTH; k++){
+                bytes memory temp = new bytes(33);
+                for(uint k = 0; k < 33; k++){
+                    temp[i] = allPubKeys[i][j][k];
                     S[k] = allPubKeys[i][j][k];
                 }
+                (tempX, tempY) = BN256G1.fromCompressed(temp);
                 uint256 res = bytesToUint256(sha256(S));
                 (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
 
