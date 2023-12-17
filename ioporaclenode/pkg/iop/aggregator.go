@@ -253,7 +253,7 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 				}
 				Signatures = append(Signatures, sI) //获取到所有的签名
 				Rs = append(Rs, RI)
-				PK = append(PK, enrollNode.PubKeys)
+				//PK = append(PK, enrollNode.PubKeys)
 			}
 			mutex.Unlock()
 		}()

@@ -170,9 +170,9 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 
 func (n *OracleNode) Run() error {
 	// 创建连接
-	if err := n.connectionManager.InitConnections(); err != nil {
-		return fmt.Errorf("init connections: %w", err)
-	}
+	//if err := n.connectionManager.InitConnections(); err != nil {
+	//	return fmt.Errorf("init connections: %w", err)
+	//}
 
 	go func() {
 		if err := n.validator.ListenAndProcess(n); err != nil {
@@ -200,10 +200,10 @@ func (n *OracleNode) Run() error {
 }
 
 func (n *OracleNode) register(ipAddr string) error {
-	isRegistered, err := n.registryContract.OracleNodeIsRegistered(nil, n.account)
-	if err != nil {
-		return fmt.Errorf("is registered: %w", err)
-	}
+	//isRegistered, err := n.registryContract.OracleNodeIsRegistered(nil, n.account)
+	//if err != nil {
+	//	return fmt.Errorf("is registered: %w", err)
+	//}
 
 	schnorrPublicKey := make([]kyber.Point, 0)
 	for _, schnorrPrivateKey := range n.schnorrPrivateKey {
@@ -212,6 +212,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	b := make([][]byte, 0)
 	for _, publicKey := range schnorrPublicKey {
 		publicKeyByte, err := publicKey.MarshalBinary()
+		fmt.Println("215", len(publicKeyByte))
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
 		}
@@ -229,12 +230,12 @@ func (n *OracleNode) register(ipAddr string) error {
 	}
 	auth.Value = minStake
 
-	if !isRegistered {
-		_, err = n.registryContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
-		if err != nil {
-			return fmt.Errorf("register iop node: %w", err)
-		}
-	}
+	//if !isRegistered {
+	//	_, err = n.registryContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
+	//	if err != nil {
+	//		return fmt.Errorf("register iop node: %w", err)
+	//	}
+	//}
 	return nil
 }
 
