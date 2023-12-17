@@ -86,6 +86,10 @@ contract RegistryContract {
         delete oracleNodes[addr]; // 删除map键值对
     }
 
+    function countOracleNodes() external view returns (uint256) {
+        return oracleNodeIndices.length;
+    }
+
     function getNodeRank(address addr) public view returns (uint256){
         return oracleNodes[addr].rank;
     }
