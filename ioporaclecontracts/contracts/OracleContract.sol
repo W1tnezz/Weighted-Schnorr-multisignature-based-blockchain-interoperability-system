@@ -28,6 +28,8 @@ contract OracleContract {
     // indexed属性是为了方便在日志结构中查找，这个是一个事件，会存储到交易的日志中，就是类似于挖矿上链
     event ValidationRequest(ValidationType typ, address indexed from, bytes32 hash, uint256 size, uint256 minRank);
 
+    uint256[2][] allPubKeys;
+
     RegistryContract private registryContract;
     constructor(address registry) {
         registryContract = RegistryContract(registry);
@@ -78,27 +80,26 @@ contract OracleContract {
         require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
         
         
-        uint256 totalRank = 0;
-        bytes1[33][][] memory allPubKeys = new bytes1[33][][](validators.length);
         for(uint32 i = 0 ; i < validators.length ; i++){
             // 验证单个节点的信誉值；
             uint256 rank = registryContract.getNodeRank(validators[i]);
             require(rank >= currentRank, "low singal rank");
-            totalRank += rank;
+            uint256[2][] memory pubKeys = registryContract.getNodePublicKeys(validators[i]);
+            for(uint j = 0; j < pubKeys.length; j++){
+                allPubKeys.push(pubKeys[j]);        
+            }
             
-            bytes1[33][] memory pubKeys = registryContract.getNodePublicKeys(validators[i]);
-            allPubKeys[i] = pubKeys;
         }
-        require(totalRank >= currentRank, "low total rank");
+        require(allPubKeys.length >= currentRank, "low total rank");
         
         // TODO:公钥重新聚合
-        bytes memory S = new bytes((totalRank + 1) * PUBKEY_LENGTH);
-        uint256 index = PUBKEY_LENGTH;
+        bytes memory S = new bytes((allPubKeys.length + 1) * 64);
+        uint256 index = 64;
         for(uint32 i = 0 ; i < allPubKeys.length ; i++){
-            for(uint32 j = 0; j < allPubKeys[i].length; j++){
-                for(uint32 k = 0; k < allPubKeys[i][j].length; k++){
-                    S[index] = allPubKeys[i][j][k];
-                    index++;
+            for(uint32 j = 0; j < 2; j++){
+                bytes32 temp = bytes32(allPubKeys[i][j]);
+                for(uint32 k = 0; k < temp.length; k++){
+                    S[index] = temp[k];
                 }
             }
         }
@@ -107,22 +108,20 @@ contract OracleContract {
         uint256 pubKeyY = 0;
 
         for(uint32 i = 0 ; i < allPubKeys.length ; i++){
-            for(uint32 j = 0; j < allPubKeys[i].length; j++){
-                uint256 tempX;
-                uint256 tempY;
-                bytes memory temp = new bytes(33);
-                for(uint k = 0; k < 33; k++){
-                    temp[i] = allPubKeys[i][j][k];
-                    S[k] = allPubKeys[i][j][k];
-                }
-                (tempX, tempY) = BN256G1.fromCompressed(temp);
-                uint256 res = bytesToUint256(sha256(S));
-                (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
-
-                (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
+            uint256 tempX = allPubKeys[i][0];
+            uint256 tempY = allPubKeys[i][1];
+            for(uint k = 0; k < 32; k++){
+                bytes32 temp = bytes32(tempX);
+                S[k] = temp[k];
             }
+            for(uint k = 0; k < 32; k++){
+                bytes32 temp = bytes32(tempY);
+                S[k + 32] = temp[k];
+            }
+            uint256 res = bytesToUint256(sha256(S));
+            (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
+            (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
         }
-
 
         /*Schnorr签名的验证*/
         require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
@@ -153,4 +152,5 @@ contract OracleContract {
         }
         return  number;
     }
+
 }

@@ -209,16 +209,14 @@ func (n *OracleNode) register(ipAddr string) error {
 	for _, schnorrPrivateKey := range n.schnorrPrivateKey {
 		schnorrPublicKey = append(schnorrPublicKey, n.suite.Point().Mul(schnorrPrivateKey, nil))
 	}
-	b := make([][2]*big.Int, 0)
+	b := make([][]byte, 0)
 	for _, publicKey := range schnorrPublicKey {
-		//publicKeyByte, err := publicKey.MarshalBinary()
+		publicKeyByte, err := publicKey.MarshalBinary()
 		fmt.Println("215", len(publicKeyByte))
-
-		publicKeyToBig, err := PointToBig(publicKey)
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
 		}
-		b = append(b, publicKeyToBig)
+		b = append(b, publicKeyByte)
 	}
 
 	minStake, err := n.registryContract.MINSTAKE(nil)
