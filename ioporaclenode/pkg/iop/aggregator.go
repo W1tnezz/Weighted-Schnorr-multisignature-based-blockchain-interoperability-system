@@ -195,7 +195,7 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 
 	Signatures := make([][]kyber.Scalar, 0)
 	Rs := make([][]kyber.Point, 0)
-	PK := make([][][]byte, 0)
+	PK := make([][][2]*big.Int, 0)
 	nodes := make([]common.Address, 0)
 	totalRank := int64(0)
 
@@ -253,7 +253,7 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 				}
 				Signatures = append(Signatures, sI) //获取到所有的签名
 				Rs = append(Rs, RI)
-				//PK = append(PK, enrollNode.PubKeys)
+				PK = append(PK, enrollNode.PubKeys)
 			}
 			mutex.Unlock()
 		}()
@@ -261,13 +261,11 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 
 	wg.Wait()
 
-	S := make([]byte, (totalRank+1)*PUBKEY_LENGTH)
-	index := PUBKEY_LENGTH
+	TMPS := make([][]byte, 0)
 	for i := 0; i < len(PK); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 			for k := 0; k < len(PK[i][j]); k++ {
-				S[index] = PK[i][j][k]
-				index++
+				TMPS = append(TMPS, PK[i][j][k].Bytes())
 			}
 		}
 	}
@@ -277,11 +275,13 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 	R := a.suite.G1().Point().Null()
 	for i := 0; i < len(PK); i++ {
 		for j := 0; j < len(PK[i]); j++ {
-			for k := 0; k < PUBKEY_LENGTH; k++ {
-				S[k] = PK[i][j][k]
+			var S = TMPS
+			for k := 0; k < 2; k++ {
+				S = append(S, PK[i][j][k].Bytes())
 			}
 			hash1 := sha256.New()
-			aI := hash1.Sum(S)
+			SBytes, _ := json.Marshal(S)
+			aI := hash1.Sum(SBytes)
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
 			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
 			MulR.Add(MulR, a.suite.G1().Point().Mul(aScalar, Rs[i][j]))
