@@ -178,6 +178,7 @@ func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
 func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleContractValidationRequest, typ ValidateRequest_Type) error {
 	result, MulSig, MulR, _hash, aText, pkText, MulY, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
+	fmt.Println(MulY)
 	if err != nil {
 		return fmt.Errorf("aggregate validation results: %w", err)
 	}
@@ -198,18 +199,23 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 		return fmt.Errorf("public key tranform to big int: %w", err)
 	}
 	R, err := PointToBig(MulR)
+
+	tmpR := R[0].Bytes()
+	RByte, _ := MulR.MarshalBinary()
+
+	fmt.Println("205", tmpR, RByte, len(tmpR), len(RByte))
+
 	if err != nil {
 		return fmt.Errorf("multi R tranform to big int: %w", err)
 	}
-	Y, err := PointToBig(MulY)
 	if err != nil {
 		return fmt.Errorf("multi R tranform to big int: %w", err)
 	}
 
-	pk, err := PointToBig(pkText)
-	if err != nil {
-		return fmt.Errorf("multi R tranform to big int: %w", err)
-	}
+	//pk, err := PointToBig(pkText)
+	//if err != nil {
+	//	return fmt.Errorf("multi R tranform to big int: %w", err)
+	//}
 
 	aTextBig, err := ScalarToBig(a.suite.G1().Scalar().SetBytes(aText))
 	if err != nil {
@@ -222,9 +228,9 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, Y[0], Y[1], pk[0], aText, aTextBig, nodes)
+		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, pkText, aText, aTextBig, nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, Y[0], Y[1], pk[0], aText, aTextBig, nodes)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, pkText, aText, aTextBig, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -242,7 +248,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	return nil
 }
 
-func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, []byte, kyber.Point, kyber.Point, []common.Address, error) {
+func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, []byte, []byte, kyber.Point, []common.Address, error) {
 
 	Signatures := make([][]kyber.Scalar, 0)
 	Rs := make([][]kyber.Point, 0)
@@ -365,7 +371,7 @@ loop:
 
 	R := a.suite.G1().Point().Null()
 	var aText []byte
-	var pkText kyber.Point
+	var pkText []byte
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 
@@ -386,6 +392,7 @@ loop:
 				S[k] = XByte[k]
 			}
 			tmpYByte := tmpY.Bytes()
+			fmt.Println("388", len(tmpXByte), len(tmpYByte))
 			YByte := make([]byte, 32)
 			for k := 31; k >= 0; k-- {
 				if len(tmpYByte)-(len(YByte)-k) >= 0 {
@@ -402,7 +409,7 @@ loop:
 			pk := a.suite.G1().Point().Null()
 			err := pk.UnmarshalBinary(pkbytes)
 			if i == 0 && j == 0 {
-				pkText = pk
+				pkText = tmpXByte
 			}
 			if err != nil {
 				fmt.Println("translate pk ", err)
@@ -410,9 +417,12 @@ loop:
 
 			hash1 := sha256.New()
 			aI := hash1.Sum(S)
+
 			if i == 0 && j == 0 {
-				aText = aI
+				aText = aI[len(aI)-32 : len(aI)]
+				fmt.Println("420", S, aI, aText)
 			}
+
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
 			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
 			MulY.Add(MulY, a.suite.G1().Point().Mul(aScalar, pk))
