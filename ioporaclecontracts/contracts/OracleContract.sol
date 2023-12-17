@@ -110,9 +110,6 @@ contract OracleContract {
                 }
                 require(false, string(temp));
                 
-                require(temp[0] == keyBytes[0], "bytes not equal  0");
-                require(temp[1] == keyBytes[1], "bytes not equal  1");
-                require(temp[2] == keyBytes[2], "bytes not equal  2");
             }
         }
 
