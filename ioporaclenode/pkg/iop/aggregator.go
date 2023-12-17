@@ -176,7 +176,7 @@ func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
 }
 
 func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleContractValidationRequest, typ ValidateRequest_Type) error {
-	result, MulSig, MulR, _hash, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
+	result, MulSig, MulR, _hash, aText, pkText, MulY, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
 	if err != nil {
 		return fmt.Errorf("aggregate validation results: %w", err)
@@ -201,15 +201,30 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	if err != nil {
 		return fmt.Errorf("multi R tranform to big int: %w", err)
 	}
+	Y, err := PointToBig(MulY)
+	if err != nil {
+		return fmt.Errorf("multi R tranform to big int: %w", err)
+	}
+
+	pk, err := PointToBig(pkText)
+	if err != nil {
+		return fmt.Errorf("multi R tranform to big int: %w", err)
+	}
+
+	aTextBig, err := ScalarToBig(a.suite.G1().Scalar().SetBytes(aText))
+	if err != nil {
+		return fmt.Errorf("multi R tranform to big int: %w", err)
+	}
+
 	hash, err := ScalarToBig(_hash)
 	if err != nil {
 		return fmt.Errorf("hash tranform to big int: %w", err)
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, Y[0], Y[1], pk[0], aText, aTextBig, nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, Y[0], Y[1], pk[0], aText, aTextBig, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -227,7 +242,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	return nil
 }
 
-func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, []common.Address, error) {
+func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, []byte, kyber.Point, kyber.Point, []common.Address, error) {
 
 	Signatures := make([][]kyber.Scalar, 0)
 	Rs := make([][]kyber.Point, 0)
@@ -349,30 +364,55 @@ loop:
 	MulY := a.suite.G1().Point().Null()
 
 	R := a.suite.G1().Point().Null()
+	var aText []byte
+	var pkText kyber.Point
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 
 			tmpX := PK[i][j][0]
 			tmpY := PK[i][j][1]
+			tmpXByte := tmpX.Bytes()
+			XByte := make([]byte, 32)
 
-			for k := 0; k < 32; k++ {
-				tmp := tmpX.Bytes()
-				S[k] = tmp[k]
+			for k := 31; k >= 0; k-- {
+				if len(tmpXByte)-(len(XByte)-k) >= 0 {
+					XByte[k] = tmpXByte[len(tmpXByte)-(len(XByte)-k)]
+				} else {
+					XByte[k] = 0
+				}
+
 			}
-
 			for k := 0; k < 32; k++ {
-				tmp := tmpY.Bytes()
-				S[k+32] = tmp[k]
+				S[k] = XByte[k]
+			}
+			tmpYByte := tmpY.Bytes()
+			YByte := make([]byte, 32)
+			for k := 31; k >= 0; k-- {
+				if len(tmpYByte)-(len(YByte)-k) >= 0 {
+					YByte[k] = tmpYByte[len(tmpYByte)-(len(YByte)-k)]
+				} else {
+					YByte[k] = 0
+				}
+
+			}
+			for k := 0; k < 32; k++ {
+				S[k+32] = YByte[k]
 			}
 			pkbytes := S[0:64]
 			pk := a.suite.G1().Point().Null()
 			err := pk.UnmarshalBinary(pkbytes)
+			if i == 0 && j == 0 {
+				pkText = pk
+			}
 			if err != nil {
 				fmt.Println("translate pk ", err)
 			}
 
 			hash1 := sha256.New()
 			aI := hash1.Sum(S)
+			if i == 0 && j == 0 {
+				aText = aI
+			}
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
 			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
 			MulY.Add(MulY, a.suite.G1().Point().Mul(aScalar, pk))
@@ -430,7 +470,7 @@ loop:
 	right.Add(right, a.suite.G1().Point().Mul(_hash, MulY))
 	fmt.Println("435", right.Equal(left))
 
-	return true, MulSignature, MulR, _hash, nodes, nil
+	return true, MulSignature, MulR, _hash, aText, pkText, MulY, nodes, nil
 
 }
 
