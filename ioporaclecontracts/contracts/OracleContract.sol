@@ -60,15 +60,15 @@ contract OracleContract {
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX, uint256 pubKeyY, uint256 firstPubKeyX, bytes32 _sha256, address[] memory validators) external {
+    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX, uint256 pubKeyY, uint256 firstPubKeyX, bytes memory _sha256, uint256 sha256Int, address[] memory validators) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, pubKeyX, pubKeyY, firstPubKeyX, _sha256, validators);
+        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, pubKeyX, pubKeyY, firstPubKeyX, _sha256, sha256Int, validators);
         isValidateTime = false;
     }
 
-    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX, uint256 pubKeyY, uint256 firstPubKeyX, bytes32 _sha256, address[] memory validators) external {
+    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX, uint256 pubKeyY, uint256 firstPubKeyX, bytes memory _sha256, uint256 sha256Int, address[] memory validators) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, pubKeyX, pubKeyY, firstPubKeyX, _sha256, validators);
+        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, pubKeyX, pubKeyY, firstPubKeyX, _sha256, sha256Int, validators);
         isValidateTime = false;
     }
 
@@ -76,7 +76,7 @@ contract OracleContract {
         ValidationType _typ,
         bool _result,
         bytes32 message,
-        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX1, uint256 pubKeyY1, uint256 firstPubKeyX, bytes32 _sha256,
+        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX1, uint256 pubKeyY1, uint256 firstPubKeyX, bytes memory _sha256, uint256 sha256Int,
         address[] memory validators
     ) private {
 
@@ -124,8 +124,11 @@ contract OracleContract {
                 bytes32 temp = bytes32(tempY);
                 S[k + 32] = temp[k];
             }
-            require(sha256((S)) == _sha256, "hash not equal");
+            require(sha256(S)[0] == _sha256[0], "hash not equal");
+            require(sha256(S)[1] == _sha256[1], "hash not equal");
+            require(sha256(S)[2] == _sha256[2], "hash not equal");
             uint256 res = bytesToUint256(sha256(S));
+            require(sha256Int == res, "sha256 to int error");
             (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
             (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
         }
