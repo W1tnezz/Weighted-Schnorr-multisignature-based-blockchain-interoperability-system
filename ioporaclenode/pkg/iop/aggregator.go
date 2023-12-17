@@ -148,7 +148,7 @@ func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
 }
 
 func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleContractValidationRequest, typ ValidateRequest_Type) error {
-	result, message, MulSig, MulR, _hash, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
+	result, MulSig, MulR, _hash, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
 	if err != nil {
 		return fmt.Errorf("aggregate validation results: %w", err)
@@ -179,9 +179,9 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, message, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, message, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -199,7 +199,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	return nil
 }
 
-func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, []byte, kyber.Scalar, kyber.Point, kyber.Scalar, []common.Address, error) {
+func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, []common.Address, error) {
 
 	Signatures := make([][]kyber.Scalar, 0)
 	Rs := make([][]kyber.Point, 0)
@@ -334,7 +334,7 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 	e := hash.Sum(bytes.Join(m, []byte("")))
 	_hash := a.suite.G1().Scalar().SetBytes(e)
 
-	return true, message, MulSignature, MulR, _hash, nodes, nil
+	return true, MulSignature, MulR, _hash, nodes, nil
 
 }
 
