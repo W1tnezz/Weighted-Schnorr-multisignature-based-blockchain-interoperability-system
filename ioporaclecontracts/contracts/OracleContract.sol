@@ -40,6 +40,10 @@ contract OracleContract {
         _;
     }
 
+    function totalFee(uint256 size) public pure returns (uint256){
+        return size * BASE_FEE + AGGREGATE_FEE;
+    }
+
     function validateBlock(bytes32 _message, uint256 size, uint256 minRank) external payable minFee(size) {
         require(!isValidateTime, "Another validate is in progress!");
         isValidateTime = true;
@@ -100,6 +104,7 @@ contract OracleContract {
                 bytes32 temp = bytes32(allPubKeys[i][j]);
                 for(uint32 k = 0; k < temp.length; k++){
                     S[index] = temp[k];
+                    index++;
                 }
             }
         }
