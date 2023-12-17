@@ -144,7 +144,6 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		ecdsaPrivateKey,
 		chainId,
 	)
-
 	node := &OracleNode{
 		server:            server,
 		serverLis:         serverLis,
@@ -163,6 +162,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		chainId:           chainId,
 		reputation:        reputation,
 	}
+
 	RegisterOracleNodeServer(server, node)
 
 	return node, nil
@@ -170,9 +170,9 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 
 func (n *OracleNode) Run() error {
 	// 创建连接
-	//if err := n.connectionManager.InitConnections(); err != nil {
-	//	return fmt.Errorf("init connections: %w", err)
-	//}
+	if err := n.connectionManager.InitConnections(); err != nil {
+		return fmt.Errorf("init connections: %w", err)
+	}
 
 	go func() {
 		if err := n.validator.ListenAndProcess(n); err != nil {
@@ -200,23 +200,23 @@ func (n *OracleNode) Run() error {
 }
 
 func (n *OracleNode) register(ipAddr string) error {
-	//isRegistered, err := n.registryContract.OracleNodeIsRegistered(nil, n.account)
-	//if err != nil {
-	//	return fmt.Errorf("is registered: %w", err)
-	//}
+	isRegistered, err := n.registryContract.OracleNodeIsRegistered(nil, n.account)
+	if err != nil {
+		return fmt.Errorf("is registered: %w", err)
+	}
 
 	schnorrPublicKey := make([]kyber.Point, 0)
 	for _, schnorrPrivateKey := range n.schnorrPrivateKey {
 		schnorrPublicKey = append(schnorrPublicKey, n.suite.Point().Mul(schnorrPrivateKey, nil))
 	}
-	b := make([][]byte, 0)
+	b := make([][2]*big.Int, 0)
 	for _, publicKey := range schnorrPublicKey {
-		publicKeyByte, err := publicKey.MarshalBinary()
-		fmt.Println("215", len(publicKeyByte))
+		publicKeyToBig, err := PointToBig(publicKey)
+
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
 		}
-		b = append(b, publicKeyByte)
+		b = append(b, publicKeyToBig)
 	}
 
 	minStake, err := n.registryContract.MINSTAKE(nil)
@@ -228,14 +228,15 @@ func (n *OracleNode) register(ipAddr string) error {
 	if err != nil {
 		return fmt.Errorf("new transactor: %w", err)
 	}
-	auth.Value = minStake
+	reputation := big.NewInt(n.reputation)
+	auth.Value = minStake.Mul(minStake, reputation)
 
-	//if !isRegistered {
-	//	_, err = n.registryContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
-	//	if err != nil {
-	//		return fmt.Errorf("register iop node: %w", err)
-	//	}
-	//}
+	if !isRegistered {
+		_, err = n.registryContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
+		if err != nil {
+			return fmt.Errorf("register iop node: %w", err)
+		}
+	}
 	return nil
 }
 

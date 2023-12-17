@@ -33,6 +33,7 @@ type Aggregator struct {
 	enrollNodes       []int64
 	minRank           int64 // 每次节点的最小
 	currentSize       int64
+	reputation        bool
 }
 
 func NewAggregator(
@@ -84,13 +85,15 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 				log.Errorf("Is aggregator: %v", err)
 				continue
 			}
-			if !isAggregator {
+			o.aggregator.size = event.Size.Int64()
+			o.aggregator.minRank = event.MinRank.Int64()
+			o.aggregator.currentSize = 0
 
+			if !isAggregator {
+				a.ValidatorEnroll(o)
 				continue
 			}
-			a.size = event.Size.Int64()
-			a.minRank = event.MinRank.Int64()
-			a.currentSize = 0
+
 			if err := a.HandleValidationRequest(ctx, event, typ); err != nil {
 				log.Errorf("Handle ValidationRequest log: %v", err)
 			}
@@ -99,6 +102,38 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+	}
+}
+
+func (a *Aggregator) ValidatorEnroll(o *OracleNode) {
+	if o.reputation < o.aggregator.minRank {
+		return
+	}
+
+	// 此时，该节点参与，但是需要先向聚合器报名，此时需要发送自己的信誉值
+	node, _ := o.registryContract.FindOracleNodeByAddress(nil, a.account)
+
+	aggregator, _ := o.registryContract.GetAggregator(nil)
+	conn, err := o.connectionManager.FindByAddress(aggregator)
+	if err != nil {
+		log.Errorf("Find connection by address: %v", err)
+	}
+	client := NewOracleNodeClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	request := &SendEnrollRequest{
+		Enroll: &EnrollDeal{Reputation: o.reputation, Index: node.Index.Bytes()},
+	}
+
+	log.Infof("Sending EnrollRequest to Aggregator %d", node.Index)
+	result, err := client.Enroll(ctx, request)
+	if err != nil {
+		log.Errorf("Send EnrollRequest: %v", err)
+	}
+	cancel()
+
+	if !result.EnrollSuccess {
+		log.Infof("node enroll fail %d", node.Index)
+		return
 	}
 }
 
@@ -112,6 +147,7 @@ func (a *Aggregator) Enroll(deal *EnrollDeal) bool {
 	if !isEnroll && a.minRank <= deal.Reputation && a.currentSize < a.size {
 		a.enrollNodes = append(a.enrollNodes, index)
 		a.currentSize += deal.Reputation
+
 		return true
 	}
 	return false
@@ -202,7 +238,20 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 	// 获取到了报名的节点数
-	time.Sleep(time.Duration(10) * time.Second)
+	timeout := time.After(Timeout)
+loop:
+	for {
+		select {
+		case <-timeout:
+			fmt.Errorf("Timeout")
+			break loop
+		default:
+			if a.currentSize >= a.size {
+				break loop
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
 
 	rand.Seed(time.Now().Unix())
 
@@ -253,7 +302,9 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 				}
 				Signatures = append(Signatures, sI) //获取到所有的签名
 				Rs = append(Rs, RI)
+
 				PK = append(PK, enrollNode.PubKeys)
+
 			}
 			mutex.Unlock()
 		}()
@@ -261,13 +312,20 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 
 	wg.Wait()
 
-	TMPS := make([][]byte, 0)
-	for i := 0; i < len(PK); i++ {
+	index := 64
+	S := make([]byte, (totalRank+1)*64)
+	for i := int64(index); i < (totalRank+1)*64; i++ {
 		for j := 0; j < len(PK[i]); j++ {
-			for k := 0; k < len(PK[i][j]); k++ {
-				TMPS = append(TMPS, PK[i][j][k].Bytes())
+			for k := 0; k < 2; k++ {
+				tmp := PK[i][j][k].Bytes()
+				for _, byteTmp := range tmp {
+					S[index] = byteTmp
+					index++
+				}
+
 			}
 		}
+
 	}
 
 	MulSignature := a.suite.G1().Scalar().Zero()
@@ -275,13 +333,21 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 	R := a.suite.G1().Point().Null()
 	for i := 0; i < len(PK); i++ {
 		for j := 0; j < len(PK[i]); j++ {
-			var S = TMPS
-			for k := 0; k < 2; k++ {
-				S = append(S, PK[i][j][k].Bytes())
+
+			tmpX := PK[i][j][0]
+			tmpY := PK[i][j][1]
+
+			for k := 0; k < 32; k++ {
+				tmp := tmpX.Bytes()
+				S[k] = tmp[k]
+			}
+
+			for k := 0; k < 32; k++ {
+				tmp := tmpY.Bytes()
+				S[k+32] = tmp[k]
 			}
 			hash1 := sha256.New()
-			SBytes, _ := json.Marshal(S)
-			aI := hash1.Sum(SBytes)
+			aI := hash1.Sum(S)
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
 			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
 			MulR.Add(MulR, a.suite.G1().Point().Mul(aScalar, Rs[i][j]))
