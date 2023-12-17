@@ -101,7 +101,7 @@ contract OracleContract {
         uint256 index = 64;
         for(uint32 i = 0 ; i < allPubKeys.length ; i++){
             for(uint32 j = 0; j < 2; j++){
-                bytes32 temp = bytes32(allPubKeys[i][j]);
+                bytes memory temp = toBytes(allPubKeys[i][j]);
                 for(uint32 k = 0; k < temp.length; k++){
                     
                     S[index] = temp[k];
@@ -120,11 +120,11 @@ contract OracleContract {
             uint256 tempX = allPubKeys[i][0];
             uint256 tempY = allPubKeys[i][1];
             for(uint k = 0; k < 32; k++){
-                bytes32 temp = bytes32(tempX);
+                bytes memory temp = toBytes(tempX);
                 S[k] = temp[k];
             }
             for(uint k = 0; k < 32; k++){
-                bytes32 temp = bytes32(tempY);
+                bytes memory temp = toBytes(tempY);
                 S[k + 32] = temp[k];
             }
             require(sha256(S)[0] == _sha256[0], "hash not equal");
@@ -168,4 +168,8 @@ contract OracleContract {
         return  number;
     }
 
+    function toBytes(uint256 x) public pure returns (bytes memory b) {
+        b = new bytes(32);
+        assembly { mstore(add(b, 32), x) }
+    }
 }
