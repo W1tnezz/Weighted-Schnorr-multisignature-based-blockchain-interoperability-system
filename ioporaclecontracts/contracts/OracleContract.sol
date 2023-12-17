@@ -22,13 +22,13 @@ contract OracleContract {
     mapping(bytes32 => bool) private blockValidationResults;
     mapping(bytes32 => bool) private txValidationResults;
 
+    uint256[2][] public allPubKeys;
+
     // 验证类型的枚举：未知，区块存在验证，交易存在验证;
     enum ValidationType { UNKNOWN, BLOCK, TRANSACTION }
 
     // indexed属性是为了方便在日志结构中查找，这个是一个事件，会存储到交易的日志中，就是类似于挖矿上链
     event ValidationRequest(ValidationType typ, address indexed from, bytes32 hash, uint256 size, uint256 minRank);
-
-    uint256[2][] allPubKeys;
 
     RegistryContract private registryContract;
     constructor(address registry) {
@@ -82,7 +82,7 @@ contract OracleContract {
 
         require(_typ != ValidationType.UNKNOWN, "unknown validation type");
         require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
-        
+    
         
         for(uint32 i = 0 ; i < validators.length ; i++){
             // 验证单个节点的信誉值；
@@ -107,6 +107,8 @@ contract OracleContract {
                     S[index] = temp[k];
                     index++;
                 }
+                require(false, string(temp));
+                
                 require(temp[0] == keyBytes[0], "bytes not equal  0");
                 require(temp[1] == keyBytes[1], "bytes not equal  1");
                 require(temp[2] == keyBytes[2], "bytes not equal  2");
