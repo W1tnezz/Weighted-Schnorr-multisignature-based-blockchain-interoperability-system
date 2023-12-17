@@ -85,15 +85,7 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 				continue
 			}
 			if !isAggregator {
-				//// 报名函数
-				//node, err := a.registryContract.FindOracleNodeByAddress(nil, a.account)
-				//time.Sleep(time.Duration(node.Index.Int64()) * time.Second)
-				//err = a.Enroll(a.account)
-				//if err != nil {
-				//	log.Errorf("Node Enroll log: %v", err)
-				//} else {
-				//	log.Infof("Enroll success")
-				//}
+
 				continue
 			}
 			a.size = event.Size.Int64()
@@ -112,9 +104,6 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 
 // 报名函数
 
-// func (a *Aggregator) HandleEnrollRequest(ctx context.Context) error {
-//
-// }
 func (a *Aggregator) Enroll(deal *EnrollDeal) bool {
 	index := new(big.Int).SetBytes(deal.Index).Int64()
 	isEnroll := a.isEnroll(index)
@@ -141,6 +130,9 @@ func (a *Aggregator) isEnroll(index int64) bool {
 // 获取报名节点
 
 func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
+	if !getNode {
+		return nil, false
+	}
 	if a.currentSize >= a.size {
 		return a.enrollNodes, true
 	}
@@ -148,7 +140,7 @@ func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
 }
 
 func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleContractValidationRequest, typ ValidateRequest_Type) error {
-	result, message, MulSig, MulR, _hash, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
+	result, MulSig, MulR, _hash, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
 	if err != nil {
 		return fmt.Errorf("aggregate validation results: %w", err)
@@ -179,9 +171,9 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, message, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, message, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -199,7 +191,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	return nil
 }
 
-func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, []byte, kyber.Scalar, kyber.Point, kyber.Scalar, []common.Address, error) {
+func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, []common.Address, error) {
 
 	Signatures := make([][]kyber.Scalar, 0)
 	Rs := make([][]kyber.Point, 0)
@@ -235,12 +227,12 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 				Size:    a.size,
 				MinRank: a.minRank,
 			})
+			cancel()
 			if err != nil {
 				log.Errorf("Validate %s: %v", typ, err)
 				return
 			}
 
-			cancel()
 			if err != nil {
 				log.Errorf("Validate %s: %v", typ, err)
 				return
@@ -251,8 +243,14 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 				totalRank += result.Reputation
 				sI := make([]kyber.Scalar, result.Reputation)
 				RI := make([]kyber.Point, result.Reputation)
-				json.Unmarshal(result.Signature, &sI)
-				json.Unmarshal(result.R, &RI)
+				err := json.Unmarshal(result.Signature, &sI)
+				if err != nil {
+					return
+				}
+				errR := json.Unmarshal(result.R, &RI)
+				if errR != nil {
+					return
+				}
 				Signatures = append(Signatures, sI) //获取到所有的签名
 				Rs = append(Rs, RI)
 				PK = append(PK, enrollNode.PubKeys)
@@ -334,7 +332,7 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 	e := hash.Sum(bytes.Join(m, []byte("")))
 	_hash := a.suite.G1().Scalar().SetBytes(e)
 
-	return true, message, MulSignature, MulR, _hash, nodes, nil
+	return true, MulSignature, MulR, _hash, nodes, nil
 
 }
 
