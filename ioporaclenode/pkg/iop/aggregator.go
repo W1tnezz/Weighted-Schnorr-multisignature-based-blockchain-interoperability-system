@@ -5,8 +5,8 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
+	"go.dedis.ch/kyber/v3/util/random"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -249,7 +249,7 @@ loop:
 			if a.currentSize >= a.size {
 				break loop
 			}
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 		}
 	}
 
@@ -268,14 +268,17 @@ loop:
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer mutex.Unlock()
 			client := NewOracleNodeClient(conn)
 			ctxTimeout, cancel := context.WithTimeout(ctx, 60*time.Second)
+
 			result, err := client.Validate(ctxTimeout, &ValidateRequest{
 				Type:    typ,
 				Hash:    txHash[:],
 				Size:    a.size,
 				MinRank: a.minRank,
 			})
+
 			cancel()
 			if err != nil {
 				log.Errorf("Validate %s: %v", typ, err)
@@ -290,23 +293,37 @@ loop:
 			mutex.Lock()
 			if result.Valid {
 				totalRank += result.Reputation
-				sI := make([]kyber.Scalar, result.Reputation)
-				RI := make([]kyber.Point, result.Reputation)
-				err := json.Unmarshal(result.Signature, &sI)
-				if err != nil {
-					return
+				sI := make([]kyber.Scalar, 0)
+				RI := make([]kyber.Point, 0)
+
+				tmpScalar := a.suite.G1().Scalar().Pick(random.New())
+
+				tmpPoint := a.suite.G1().Point().Mul(tmpScalar, nil)
+
+				scalarSize := tmpScalar.MarshalSize()
+				PointSize := tmpPoint.MarshalSize()
+
+				for i := int64(0); i < result.Reputation; i++ {
+					sSlice := result.Signature[i*int64(scalarSize) : (i+1)*int64(scalarSize)]
+
+					sI = append(sI, a.suite.G1().Scalar().SetBytes(sSlice))
+
+					RSliceBytes := result.R[i*int64(PointSize) : (i+1)*int64(PointSize)]
+					RSlice := a.suite.G1().Point().Base()
+					err := RSlice.UnmarshalBinary(RSliceBytes)
+					if err != nil {
+						fmt.Println("UnmarshalBinary R ,", err)
+					}
+					RI = append(RI, RSlice)
 				}
-				errR := json.Unmarshal(result.R, &RI)
-				if errR != nil {
-					return
-				}
+
 				Signatures = append(Signatures, sI) //获取到所有的签名
 				Rs = append(Rs, RI)
 
 				PK = append(PK, enrollNode.PubKeys)
 
 			}
-			mutex.Unlock()
+
 		}()
 	}
 
@@ -314,7 +331,7 @@ loop:
 
 	index := 64
 	S := make([]byte, (totalRank+1)*64)
-	for i := int64(index); i < (totalRank+1)*64; i++ {
+	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 			for k := 0; k < 2; k++ {
 				tmp := PK[i][j][k].Bytes()
@@ -322,7 +339,6 @@ loop:
 					S[index] = byteTmp
 					index++
 				}
-
 			}
 		}
 
@@ -330,8 +346,10 @@ loop:
 
 	MulSignature := a.suite.G1().Scalar().Zero()
 	MulR := a.suite.G1().Point().Null()
+	MulY := a.suite.G1().Point().Null()
+
 	R := a.suite.G1().Point().Null()
-	for i := 0; i < len(PK); i++ {
+	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 
 			tmpX := PK[i][j][0]
@@ -346,10 +364,18 @@ loop:
 				tmp := tmpY.Bytes()
 				S[k+32] = tmp[k]
 			}
+			pkbytes := S[0:64]
+			pk := a.suite.G1().Point().Null()
+			err := pk.UnmarshalBinary(pkbytes)
+			if err != nil {
+				fmt.Println("translate pk ", err)
+			}
+
 			hash1 := sha256.New()
 			aI := hash1.Sum(S)
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
 			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
+			MulY.Add(MulY, a.suite.G1().Point().Mul(aScalar, pk))
 			MulR.Add(MulR, a.suite.G1().Point().Mul(aScalar, Rs[i][j]))
 			R.Add(R, Rs[i][j])
 		}
@@ -397,6 +423,12 @@ loop:
 	hash := sha256.New()
 	e := hash.Sum(bytes.Join(m, []byte("")))
 	_hash := a.suite.G1().Scalar().SetBytes(e)
+
+	left := a.suite.G1().Point().Mul(MulSignature, nil)
+	right := MulR.Clone()
+
+	right.Add(right, a.suite.G1().Point().Mul(_hash, MulY))
+	fmt.Println("435", right.Equal(left))
 
 	return true, MulSignature, MulR, _hash, nodes, nil
 

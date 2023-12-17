@@ -120,6 +120,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	account := common.HexToAddress(hexAddress)
 
 	connectionManager := NewConnectionManager(registryContractWrapper, account)
+	RAll := make(map[uint64]kyber.Point)
 	validator := NewValidator(
 		suite,
 		registryContractWrapper,
@@ -127,6 +128,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		ecdsaPrivateKey,
 		sourceEthClient,
 		connectionManager,
+		RAll,
 		account,
 		mqttClient,
 		mqttTopic,

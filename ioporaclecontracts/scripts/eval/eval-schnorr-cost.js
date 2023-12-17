@@ -5,7 +5,7 @@ const OracleContract = artifacts.require("OracleContract");
 module.exports = async function () {
 
   let oracleContract = await OracleContract.deployed();
-  let tx = "0x5df34dd9c92065367162bbc91b91da617a1bda0c260bddc77c1fdf4c4b98f2ed";
+  let tx = "0x034897cba1b98c3c5d4bb491bd5cef7fac8ff87bf0b97ce563894dbd61bcd008";
   let size = 10;   // 总量阈值
   let minRank = 3;  // 个人阈值
   let fee = await oracleContract.totalFee(size);

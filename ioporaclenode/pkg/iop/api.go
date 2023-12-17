@@ -69,10 +69,11 @@ func (n *OracleNode) Validate(ctx context.Context, request *ValidateRequest) (*V
 
 func ValidateResultToResponse(result *ValidateResult) *ValidateResponse {
 	resp := &ValidateResponse{
-		Hash:      result.hash[:],
-		Valid:     result.valid,
-		Signature: result.signature,
-		R:         result.R,
+		Hash:       result.hash[:],
+		Valid:      result.valid,
+		Signature:  result.signature,
+		R:          result.R,
+		Reputation: result.reputation,
 	}
 
 	if result.blockNumber != nil {

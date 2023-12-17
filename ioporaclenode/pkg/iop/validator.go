@@ -27,7 +27,7 @@ import (
 	"go.dedis.ch/kyber/v3/util/random"
 )
 
-const CONFIRMATIONS uint64 = 5
+const CONFIRMATIONS uint64 = 0
 
 type ValidateResult struct {
 	hash        common.Hash
@@ -62,6 +62,7 @@ func NewValidator(
 	ecdsaPrivateKey *ecdsa.PrivateKey,
 	ethClient *ethclient.Client,
 	connectionManager *ConnectionManager,
+	RAll map[uint64]kyber.Point,
 	account common.Address,
 	mqttClient mqtt.Client,
 	mqttTopic []byte,
@@ -77,6 +78,7 @@ func NewValidator(
 		oracleContract:    oracleContract,
 		ethClient:         ethClient,
 		connectionManager: connectionManager,
+		RAll:              RAll,
 		account:           account,
 		mqttClient:        mqttClient,
 		mqttTopic:         mqttTopic,
@@ -87,7 +89,6 @@ func NewValidator(
 }
 
 func (v *Validator) Sign(message []byte) ([][]byte, error) {
-	v.RAll = make(map[uint64]kyber.Point)
 
 	//此时要获取所有的报名节点，要考虑是否达到阈值，循环质询
 	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
@@ -178,9 +179,21 @@ loop:
 	}
 
 	signature := make([][]byte, 2)
+	for _, si := range s {
+		siBytes, _ := si.MarshalBinary()
+		for _, b := range siBytes {
+			signature[0] = append(signature[0], b)
+		}
 
-	signature[0], err = json.Marshal(s)
-	signature[1], err = json.Marshal(RI)
+	}
+
+	for _, Ri := range RI {
+		RiBytes, _ := Ri.MarshalBinary()
+		for _, b := range RiBytes {
+			signature[1] = append(signature[1], b)
+		}
+
+	}
 
 	return signature, nil
 }
