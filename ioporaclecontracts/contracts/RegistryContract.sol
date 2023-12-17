@@ -5,7 +5,7 @@ contract RegistryContract {
     struct OracleNode {
         address addr;  // 链上地址
         string ipAddr; // 节点IP地址
-        bytes1[33][] pubKeys;  // schnorr公钥；
+        uint256[2][] pubKeys;  // schnorr公钥；
         uint256 stake; // 质押
         uint256 rank;  // 可信等级，即公钥数量
         uint256 index;
@@ -22,7 +22,7 @@ contract RegistryContract {
 
     event RegisterOracleNode(address indexed sender);
 
-    function registerOracleNode(string calldata _ipAddr, bytes1[33][] calldata _pubKey, uint256 rank)
+    function registerOracleNode(string calldata _ipAddr, uint256[2][] calldata _pubKey, uint256 rank)
         external
         payable
     {
@@ -90,7 +90,7 @@ contract RegistryContract {
         return oracleNodes[addr].rank;
     }
 
-    function getNodePublicKeys(address addr) public view returns (bytes1[33][] memory){
+    function getNodePublicKeys(address addr) public view returns (uint256[2][] memory){
         return oracleNodes[addr].pubKeys;
     }
 

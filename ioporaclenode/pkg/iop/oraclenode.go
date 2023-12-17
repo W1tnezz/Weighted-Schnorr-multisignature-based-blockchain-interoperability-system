@@ -212,6 +212,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	b := make([][]byte, 0)
 	for _, publicKey := range schnorrPublicKey {
 		publicKeyByte, err := publicKey.MarshalBinary()
+		
 		fmt.Println("215", len(publicKeyByte))
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
