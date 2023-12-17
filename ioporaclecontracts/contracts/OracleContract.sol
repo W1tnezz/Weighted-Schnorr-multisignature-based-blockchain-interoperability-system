@@ -100,6 +100,7 @@ contract OracleContract {
                 bytes32 temp = bytes32(allPubKeys[i][j]);
                 for(uint32 k = 0; k < temp.length; k++){
                     S[index] = temp[k];
+                    index++;
                 }
             }
         }
