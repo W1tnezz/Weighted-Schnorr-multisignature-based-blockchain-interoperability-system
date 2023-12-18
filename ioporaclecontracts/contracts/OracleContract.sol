@@ -82,7 +82,6 @@ contract OracleContract {
         require(_typ != ValidationType.UNKNOWN, "unknown validation type");
         require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
     
-        
         for(uint32 i = 0 ; i < validators.length ; i++){
             // 验证单个节点的信誉值；
             uint256 rank = registryContract.getNodeRank(validators[i]);
@@ -99,7 +98,7 @@ contract OracleContract {
          uint256 index = 64;
          for(uint32 i = 0 ; i < allPubKeys.length ; i++){
              for(uint32 j = 0; j < 2; j++){
-                 bytes memory temp = toBytes(allPubKeys[i][j]);
+                 bytes32 temp = bytes32(allPubKeys[i][j]);
                  for(uint32 k = 0; k < temp.length; k++){
                      S[index] = temp[k];
                      index++;
@@ -114,18 +113,17 @@ contract OracleContract {
              uint256 tempX = allPubKeys[i][0];
              uint256 tempY = allPubKeys[i][1];
              for(uint k = 0; k < 32; k++){
-                 bytes memory temp = toBytes(tempX);
+                 bytes32 temp = bytes32(tempX);
                  S[k] = temp[k];
              }
              for(uint k = 0; k < 32; k++){
-                 bytes memory temp = toBytes(tempY);
+                 bytes32 temp = bytes32(tempY);
                  S[k + 32] = temp[k];
              }
              uint256 res = bytesToUint256(sha256(S));
              (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
              (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
          }
-        // require(Schnorr.verify(signature, pubKeyX1, pubKeyY1, rx, ry, _hash), "sig verify fail");
 
         // require(pubKeyX == pubKeyX1, "pubKey recover fail");
         /*Schnorr签名的验证*/
@@ -158,10 +156,5 @@ contract OracleContract {
             number = number + uint8(b[i])*(2**(8*(b.length-(i+1))));
         }
         return  number;
-    }
-
-    function toBytes(uint256 x) public pure returns (bytes memory b) {
-        b = new bytes(32);
-        assembly { mstore(add(b, 32), x) }
     }
 }
