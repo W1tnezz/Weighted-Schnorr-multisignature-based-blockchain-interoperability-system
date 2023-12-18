@@ -95,20 +95,20 @@ contract OracleContract {
         require(allPubKeys.length >= currentRank, "low total rank");
         
         // TODO:公钥重新聚合
-        bytes memory S = new bytes((allPubKeys.length + 1) * 64);
-        uint256 index = 64;
-        for(uint32 i = 0 ; i < allPubKeys.length ; i++){
-            for(uint32 j = 0; j < 2; j++){
-                bytes memory temp = toBytes(allPubKeys[i][j]);
-                for(uint32 k = 0; k < temp.length; k++){                   
-                    S[index] = temp[k];
-                    index++;
-                }               
-            }
-        }
+        // bytes memory S = new bytes((allPubKeys.length + 1) * 64);
+        // uint256 index = 64;
+        // for(uint32 i = 0 ; i < allPubKeys.length ; i++){
+        //     for(uint32 j = 0; j < 2; j++){
+        //         bytes memory temp = toBytes(allPubKeys[i][j]);
+        //         for(uint32 k = 0; k < temp.length; k++){                   
+        //             S[index] = temp[k];
+        //             index++;
+        //         }               
+        //     }
+        // }
 
-        uint256 pubKeyX = 0;
-        uint256 pubKeyY = 0;
+        // uint256 pubKeyX = 0;
+        // uint256 pubKeyY = 0;
 
         // for(uint32 i = 0 ; i < allPubKeys.length ; i++){
         //     uint256 tempX = allPubKeys[i][0];
