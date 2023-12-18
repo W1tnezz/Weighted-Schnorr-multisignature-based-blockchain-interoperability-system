@@ -76,10 +76,9 @@ contract OracleContract {
         ValidationType _typ,
         bool _result,
         bytes32 message,
-        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 hashScalar0,  uint256 hashScalar2,
+        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX1,  uint256 pubKeyY1,
         address[] memory validators
     ) private {
-
         require(_typ != ValidationType.UNKNOWN, "unknown validation type");
         require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
     
@@ -92,7 +91,6 @@ contract OracleContract {
             for(uint j = 0; j < pubKeys.length; j++){
                 allPubKeys.push(pubKeys[j]);        
             }
-            
         }
         require(allPubKeys.length >= currentRank, "low total rank");
         
@@ -112,32 +110,26 @@ contract OracleContract {
         uint256 pubKeyX = 0;
         uint256 pubKeyY = 0;
 
-        for(uint32 i = 0 ; i < allPubKeys.length ; i++){
-            uint256 tempX = allPubKeys[i][0];
-            uint256 tempY = allPubKeys[i][1];
-            for(uint k = 0; k < 32; k++){
-                bytes memory temp = toBytes(tempX);
-                S[k] = temp[k];
-            }
-            for(uint k = 0; k < 32; k++){
-                bytes memory temp = toBytes(tempY);
-                S[k + 32] = temp[k];
-            }
-            uint256 res = bytesToUint256(sha256(S));
-            if(i == 0){
-                require(hashScalar0 == res, "scalar 0 not equal");
-            }
-            if(i == 2){
-                require(hashScalar2 == res, "scalar 2 not equal");
-            }
-            (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
-            (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
-        }
+        // for(uint32 i = 0 ; i < allPubKeys.length ; i++){
+        //     uint256 tempX = allPubKeys[i][0];
+        //     uint256 tempY = allPubKeys[i][1];
+        //     for(uint k = 0; k < 32; k++){
+        //         bytes memory temp = toBytes(tempX);
+        //         S[k] = temp[k];
+        //     }
+        //     for(uint k = 0; k < 32; k++){
+        //         bytes memory temp = toBytes(tempY);
+        //         S[k + 32] = temp[k];
+        //     }
+        //     uint256 res = bytesToUint256(sha256(S));
+        //     (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
+        //     (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
+        // }
         // require(Schnorr.verify(signature, pubKeyX1, pubKeyY1, rx, ry, _hash), "sig verify fail");
 
         // require(pubKeyX == pubKeyX1, "pubKey recover fail");
         /*Schnorr签名的验证*/
-        require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+        require(Schnorr.verify(signature, pubKeyX1, pubKeyY1, rx, ry, _hash), "sig: address doesn't match");
 
         if (_typ == ValidationType.BLOCK) {
             blockValidationResults[message] = _result;
