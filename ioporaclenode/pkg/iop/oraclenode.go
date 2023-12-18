@@ -121,6 +121,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 
 	connectionManager := NewConnectionManager(registryContractWrapper, account)
 	RAll := make(map[uint64]kyber.Point)
+	enrollNodes := []int64{}
 	validator := NewValidator(
 		suite,
 		registryContractWrapper,
@@ -145,6 +146,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		account,
 		ecdsaPrivateKey,
 		chainId,
+		enrollNodes,
 	)
 	node := &OracleNode{
 		server:            server,
@@ -176,18 +178,6 @@ func (n *OracleNode) Run() error {
 		return fmt.Errorf("init connections: %w", err)
 	}
 
-	for i := 0; i < 50; i++ {
-		x := n.suite.Scalar().Pick(random.New())
-		y := n.suite.Point().Mul(x, nil)
-
-		yBytes, _ := y.MarshalBinary()
-		yBig, _ := PointToBig(y)
-		yXByte := yBig[0].Bytes()
-		if len(yXByte) < 32 {
-			fmt.Println(yBytes, yXByte)
-		}
-
-	}
 	go func() {
 		if err := n.validator.ListenAndProcess(n); err != nil {
 			log.Errorf("Watch and handle DKG log: %v", err)

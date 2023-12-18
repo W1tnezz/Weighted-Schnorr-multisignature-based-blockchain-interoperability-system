@@ -310,35 +310,6 @@ func (v *Validator) sendR(enrollNodes []int64, R []byte) {
 }
 
 func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, size int64, minRank int64) (*ValidateResult, error) {
-	//if v.reputation < minRank {
-	//	return nil, fmt.Errorf("该节点不参与")
-	//}
-	//
-	//// 此时，该节点参与，但是需要先向聚合器报名，此时需要发送自己的信誉值
-	//node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
-	//
-	//aggregator, _ := v.registryContract.GetAggregator(nil)
-	//conn, err := v.connectionManager.FindByAddress(aggregator)
-	//if err != nil {
-	//	log.Errorf("Find connection by address: %v", err)
-	//}
-	//client := NewOracleNodeClient(conn)
-	//ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	//request := &SendEnrollRequest{
-	//	Enroll: &EnrollDeal{Reputation: v.reputation, Index: node.Index.Bytes()},
-	//}
-	//
-	//log.Infof("Sending EnrollRequest to Aggregator %d", node.Index)
-	//result, err := client.Enroll(ctx, request)
-	//if err != nil {
-	//	log.Errorf("Send EnrollRequest: %v", err)
-	//}
-	//cancel()
-	//
-	//if !result.EnrollSuccess {
-	//	log.Infof("node enroll fail %d", node.Index)
-	//	return nil, nil
-	//}
 
 	receipt, err := v.ethClient.TransactionReceipt(ctx, hash)
 	found := !errors.Is(err, ethereum.NotFound)
@@ -372,7 +343,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, s
 	if err != nil {
 		return nil, fmt.Errorf("tbls sign: %w", err)
 	}
-
+	v.RAll = make(map[uint64]kyber.Point)
 	return &ValidateResult{
 		hash,
 		valid,
