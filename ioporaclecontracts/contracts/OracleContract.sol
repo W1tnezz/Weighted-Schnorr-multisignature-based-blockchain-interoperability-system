@@ -124,12 +124,6 @@ contract OracleContract {
                 S[k + 32] = temp[k];
             }
             uint256 res = bytesToUint256(sha256(S));
-            if(i == 0){
-                require(hashScalar0 == res, "scalar 0 not equal");
-            }
-            if(i == 2){
-                require(hashScalar2 == res, "scalar 2 not equal");
-            }
             (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
             (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
         }
@@ -156,6 +150,8 @@ contract OracleContract {
                 payable(validators[i]).transfer(address(this).balance); 
             }
         }
+
+        delete allPubKeys;
     }
 
     function bytesToUint256(bytes32 b) public pure returns (uint256){
