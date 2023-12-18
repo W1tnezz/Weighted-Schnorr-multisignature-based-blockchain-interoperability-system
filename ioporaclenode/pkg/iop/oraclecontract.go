@@ -31,7 +31,7 @@ var (
 
 // OracleContractMetaData contains all meta data concerning the OracleContract contract.
 var OracleContractMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"registry\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"enumOracleContract.ValidationType\",\"name\":\"typ\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"minRank\",\"type\":\"uint256\"}],\"name\":\"ValidationRequest\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"AGGREGATE_FEE\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"BASE_FEE\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"PUBKEY_LENGTH\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"allPubKeys\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"b\",\"type\":\"bytes32\"}],\"name\":\"bytesToUint256\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bool\",\"name\":\"_result\",\"type\":\"bool\"},{\"internalType\":\"bytes32\",\"name\":\"message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signature\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rx\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"ry\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_hash\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"hashScalar0\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"hashScalar2\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"validators\",\"type\":\"address[]\"}],\"name\":\"submitBlockValidationResult\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bool\",\"name\":\"_result\",\"type\":\"bool\"},{\"internalType\":\"bytes32\",\"name\":\"message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signature\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rx\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"ry\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_hash\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"hashScalar0\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"hashScalar2\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"validators\",\"type\":\"address[]\"}],\"name\":\"submitTransactionValidationResult\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"}],\"name\":\"toBytes\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"b\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"}],\"name\":\"totalFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minRank\",\"type\":\"uint256\"}],\"name\":\"validateBlock\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minRank\",\"type\":\"uint256\"}],\"name\":\"validateTransaction\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"registry\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"enumOracleContract.ValidationType\",\"name\":\"typ\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"minRank\",\"type\":\"uint256\"}],\"name\":\"ValidationRequest\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"AGGREGATE_FEE\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"BASE_FEE\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"PUBKEY_LENGTH\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bool\",\"name\":\"_result\",\"type\":\"bool\"},{\"internalType\":\"bytes32\",\"name\":\"message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signature\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rx\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"ry\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_hash\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"validators\",\"type\":\"address[]\"}],\"name\":\"submitBlockValidationResult\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bool\",\"name\":\"_result\",\"type\":\"bool\"},{\"internalType\":\"bytes32\",\"name\":\"message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"signature\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rx\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"ry\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_hash\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"validators\",\"type\":\"address[]\"}],\"name\":\"submitTransactionValidationResult\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"}],\"name\":\"totalFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minRank\",\"type\":\"uint256\"}],\"name\":\"validateBlock\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_message\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"size\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minRank\",\"type\":\"uint256\"}],\"name\":\"validateTransaction\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // OracleContractABI is the input ABI used to generate the binding from.
@@ -273,99 +273,6 @@ func (_OracleContract *OracleContractCallerSession) PUBKEYLENGTH() (*big.Int, er
 	return _OracleContract.Contract.PUBKEYLENGTH(&_OracleContract.CallOpts)
 }
 
-// AllPubKeys is a free data retrieval call binding the contract method 0xd4cff25e.
-//
-// Solidity: function allPubKeys(uint256 , uint256 ) view returns(uint256)
-func (_OracleContract *OracleContractCaller) AllPubKeys(opts *bind.CallOpts, arg0 *big.Int, arg1 *big.Int) (*big.Int, error) {
-	var out []interface{}
-	err := _OracleContract.contract.Call(opts, &out, "allPubKeys", arg0, arg1)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// AllPubKeys is a free data retrieval call binding the contract method 0xd4cff25e.
-//
-// Solidity: function allPubKeys(uint256 , uint256 ) view returns(uint256)
-func (_OracleContract *OracleContractSession) AllPubKeys(arg0 *big.Int, arg1 *big.Int) (*big.Int, error) {
-	return _OracleContract.Contract.AllPubKeys(&_OracleContract.CallOpts, arg0, arg1)
-}
-
-// AllPubKeys is a free data retrieval call binding the contract method 0xd4cff25e.
-//
-// Solidity: function allPubKeys(uint256 , uint256 ) view returns(uint256)
-func (_OracleContract *OracleContractCallerSession) AllPubKeys(arg0 *big.Int, arg1 *big.Int) (*big.Int, error) {
-	return _OracleContract.Contract.AllPubKeys(&_OracleContract.CallOpts, arg0, arg1)
-}
-
-// BytesToUint256 is a free data retrieval call binding the contract method 0x53d62ff7.
-//
-// Solidity: function bytesToUint256(bytes32 b) pure returns(uint256)
-func (_OracleContract *OracleContractCaller) BytesToUint256(opts *bind.CallOpts, b [32]byte) (*big.Int, error) {
-	var out []interface{}
-	err := _OracleContract.contract.Call(opts, &out, "bytesToUint256", b)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// BytesToUint256 is a free data retrieval call binding the contract method 0x53d62ff7.
-//
-// Solidity: function bytesToUint256(bytes32 b) pure returns(uint256)
-func (_OracleContract *OracleContractSession) BytesToUint256(b [32]byte) (*big.Int, error) {
-	return _OracleContract.Contract.BytesToUint256(&_OracleContract.CallOpts, b)
-}
-
-// BytesToUint256 is a free data retrieval call binding the contract method 0x53d62ff7.
-//
-// Solidity: function bytesToUint256(bytes32 b) pure returns(uint256)
-func (_OracleContract *OracleContractCallerSession) BytesToUint256(b [32]byte) (*big.Int, error) {
-	return _OracleContract.Contract.BytesToUint256(&_OracleContract.CallOpts, b)
-}
-
-// ToBytes is a free data retrieval call binding the contract method 0x775a8f5e.
-//
-// Solidity: function toBytes(uint256 x) pure returns(bytes b)
-func (_OracleContract *OracleContractCaller) ToBytes(opts *bind.CallOpts, x *big.Int) ([]byte, error) {
-	var out []interface{}
-	err := _OracleContract.contract.Call(opts, &out, "toBytes", x)
-
-	if err != nil {
-		return *new([]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
-
-	return out0, err
-
-}
-
-// ToBytes is a free data retrieval call binding the contract method 0x775a8f5e.
-//
-// Solidity: function toBytes(uint256 x) pure returns(bytes b)
-func (_OracleContract *OracleContractSession) ToBytes(x *big.Int) ([]byte, error) {
-	return _OracleContract.Contract.ToBytes(&_OracleContract.CallOpts, x)
-}
-
-// ToBytes is a free data retrieval call binding the contract method 0x775a8f5e.
-//
-// Solidity: function toBytes(uint256 x) pure returns(bytes b)
-func (_OracleContract *OracleContractCallerSession) ToBytes(x *big.Int) ([]byte, error) {
-	return _OracleContract.Contract.ToBytes(&_OracleContract.CallOpts, x)
-}
-
 // TotalFee is a free data retrieval call binding the contract method 0xcea74edf.
 //
 // Solidity: function totalFee(uint256 size) pure returns(uint256)
@@ -397,46 +304,46 @@ func (_OracleContract *OracleContractCallerSession) TotalFee(size *big.Int) (*bi
 	return _OracleContract.Contract.TotalFee(&_OracleContract.CallOpts, size)
 }
 
-// SubmitBlockValidationResult is a paid mutator transaction binding the contract method 0xe21312de.
+// SubmitBlockValidationResult is a paid mutator transaction binding the contract method 0x2fe0bbd4.
 //
-// Solidity: function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, uint256 hashScalar0, uint256 hashScalar2, address[] validators) returns()
-func (_OracleContract *OracleContractTransactor) SubmitBlockValidationResult(opts *bind.TransactOpts, _result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, hashScalar0 *big.Int, hashScalar2 *big.Int, validators []common.Address) (*types.Transaction, error) {
-	return _OracleContract.contract.Transact(opts, "submitBlockValidationResult", _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators)
+// Solidity: function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, address[] validators) returns()
+func (_OracleContract *OracleContractTransactor) SubmitBlockValidationResult(opts *bind.TransactOpts, _result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, validators []common.Address) (*types.Transaction, error) {
+	return _OracleContract.contract.Transact(opts, "submitBlockValidationResult", _result, message, signature, rx, ry, _hash, validators)
 }
 
-// SubmitBlockValidationResult is a paid mutator transaction binding the contract method 0xe21312de.
+// SubmitBlockValidationResult is a paid mutator transaction binding the contract method 0x2fe0bbd4.
 //
-// Solidity: function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, uint256 hashScalar0, uint256 hashScalar2, address[] validators) returns()
-func (_OracleContract *OracleContractSession) SubmitBlockValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, hashScalar0 *big.Int, hashScalar2 *big.Int, validators []common.Address) (*types.Transaction, error) {
-	return _OracleContract.Contract.SubmitBlockValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators)
+// Solidity: function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, address[] validators) returns()
+func (_OracleContract *OracleContractSession) SubmitBlockValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, validators []common.Address) (*types.Transaction, error) {
+	return _OracleContract.Contract.SubmitBlockValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, validators)
 }
 
-// SubmitBlockValidationResult is a paid mutator transaction binding the contract method 0xe21312de.
+// SubmitBlockValidationResult is a paid mutator transaction binding the contract method 0x2fe0bbd4.
 //
-// Solidity: function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, uint256 hashScalar0, uint256 hashScalar2, address[] validators) returns()
-func (_OracleContract *OracleContractTransactorSession) SubmitBlockValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, hashScalar0 *big.Int, hashScalar2 *big.Int, validators []common.Address) (*types.Transaction, error) {
-	return _OracleContract.Contract.SubmitBlockValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators)
+// Solidity: function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, address[] validators) returns()
+func (_OracleContract *OracleContractTransactorSession) SubmitBlockValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, validators []common.Address) (*types.Transaction, error) {
+	return _OracleContract.Contract.SubmitBlockValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, validators)
 }
 
-// SubmitTransactionValidationResult is a paid mutator transaction binding the contract method 0x2ef31c3c.
+// SubmitTransactionValidationResult is a paid mutator transaction binding the contract method 0x9459142f.
 //
-// Solidity: function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, uint256 hashScalar0, uint256 hashScalar2, address[] validators) returns()
-func (_OracleContract *OracleContractTransactor) SubmitTransactionValidationResult(opts *bind.TransactOpts, _result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, hashScalar0 *big.Int, hashScalar2 *big.Int, validators []common.Address) (*types.Transaction, error) {
-	return _OracleContract.contract.Transact(opts, "submitTransactionValidationResult", _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators)
+// Solidity: function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, address[] validators) returns()
+func (_OracleContract *OracleContractTransactor) SubmitTransactionValidationResult(opts *bind.TransactOpts, _result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, validators []common.Address) (*types.Transaction, error) {
+	return _OracleContract.contract.Transact(opts, "submitTransactionValidationResult", _result, message, signature, rx, ry, _hash, validators)
 }
 
-// SubmitTransactionValidationResult is a paid mutator transaction binding the contract method 0x2ef31c3c.
+// SubmitTransactionValidationResult is a paid mutator transaction binding the contract method 0x9459142f.
 //
-// Solidity: function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, uint256 hashScalar0, uint256 hashScalar2, address[] validators) returns()
-func (_OracleContract *OracleContractSession) SubmitTransactionValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, hashScalar0 *big.Int, hashScalar2 *big.Int, validators []common.Address) (*types.Transaction, error) {
-	return _OracleContract.Contract.SubmitTransactionValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators)
+// Solidity: function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, address[] validators) returns()
+func (_OracleContract *OracleContractSession) SubmitTransactionValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, validators []common.Address) (*types.Transaction, error) {
+	return _OracleContract.Contract.SubmitTransactionValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, validators)
 }
 
-// SubmitTransactionValidationResult is a paid mutator transaction binding the contract method 0x2ef31c3c.
+// SubmitTransactionValidationResult is a paid mutator transaction binding the contract method 0x9459142f.
 //
-// Solidity: function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, uint256 hashScalar0, uint256 hashScalar2, address[] validators) returns()
-func (_OracleContract *OracleContractTransactorSession) SubmitTransactionValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, hashScalar0 *big.Int, hashScalar2 *big.Int, validators []common.Address) (*types.Transaction, error) {
-	return _OracleContract.Contract.SubmitTransactionValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators)
+// Solidity: function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx, uint256 ry, uint256 _hash, address[] validators) returns()
+func (_OracleContract *OracleContractTransactorSession) SubmitTransactionValidationResult(_result bool, message [32]byte, signature *big.Int, rx *big.Int, ry *big.Int, _hash *big.Int, validators []common.Address) (*types.Transaction, error) {
+	return _OracleContract.Contract.SubmitTransactionValidationResult(&_OracleContract.TransactOpts, _result, message, signature, rx, ry, _hash, validators)
 }
 
 // ValidateBlock is a paid mutator transaction binding the contract method 0xce9d294b.

@@ -22,8 +22,6 @@ contract OracleContract {
     mapping(bytes32 => bool) private blockValidationResults;
     mapping(bytes32 => bool) private txValidationResults;
 
-    uint256[2][] public allPubKeys;
-
     // 验证类型的枚举：未知，区块存在验证，交易存在验证;
     enum ValidationType { UNKNOWN, BLOCK, TRANSACTION }
 
@@ -60,15 +58,15 @@ contract OracleContract {
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 hashScalar0,  uint256 hashScalar2, address[] memory validators) external {
+    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators);
+        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, validators);
         isValidateTime = false;
     }
 
-    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 hashScalar0,  uint256 hashScalar2, address[] memory validators) external {
+    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators);
+        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, validators);
         isValidateTime = false;
     }
 
@@ -76,58 +74,62 @@ contract OracleContract {
         ValidationType _typ,
         bool _result,
         bytes32 message,
-        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 pubKeyX1,  uint256 pubKeyY1,
+        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, 
         address[] memory validators
     ) private {
         require(_typ != ValidationType.UNKNOWN, "unknown validation type");
         require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
     
-        for(uint32 i = 0 ; i < validators.length ; i++){
+        uint256 totalRank = 0;
+        for(uint16 i = 0 ; i < validators.length ; i++){
             // 验证单个节点的信誉值；
             uint256 rank = registryContract.getNodeRank(validators[i]);
             require(rank >= currentRank, "low singal rank");
-            uint256[2][] memory pubKeys = registryContract.getNodePublicKeys(validators[i]);
-            for(uint j = 0; j < pubKeys.length; j++){
-                allPubKeys.push(pubKeys[j]);        
+            totalRank += rank;
+        }
+        require(totalRank >= currentRank, "low total rank");
+            
+        //公钥重新聚合
+        bytes memory S = new bytes((totalRank + 1) * 64);
+        uint256 index = 64;
+        for(uint16 i = 0; i < validators.length; i++){
+            uint256[2][] memory keys = registryContract.getNodePublicKeys(validators[i]);
+            for(uint16 j = 0 ; j < keys.length; j++){
+                for(uint16 k = 0; k < 2; k++){
+                    bytes32 temp = bytes32(keys[j][k]);
+                    for(uint16 l = 0; l < temp.length; l++){
+                        S[index] = temp[l];
+                        index++;
+                    }
+                }
             }
         }
-        require(allPubKeys.length >= currentRank, "low total rank");
         
-        // TODO:公钥重新聚合
-         bytes memory S = new bytes((allPubKeys.length + 1) * 64);
-         uint256 index = 64;
-         for(uint32 i = 0 ; i < allPubKeys.length ; i++){
-             for(uint32 j = 0; j < 2; j++){
-                 bytes32 temp = bytes32(allPubKeys[i][j]);
-                 for(uint32 k = 0; k < temp.length; k++){
-                     S[index] = temp[k];
-                     index++;
-                 }
-             }
-         }
+        uint256 pubKeyX = 0;
+        uint256 pubKeyY = 0;
 
-         uint256 pubKeyX = 0;
-         uint256 pubKeyY = 0;
+        for(uint16 i = 0; i < validators.length; i++){
+            uint256[2][] memory keys = registryContract.getNodePublicKeys(validators[i]);
+            for(uint16 j = 0 ; j < keys.length ; j++){
+                uint256 tempX = keys[j][0];
+                uint256 tempY = keys[j][1];
+                for(uint16 k = 0; k < 32; k++){
+                    bytes32 temp = bytes32(tempX);
+                    S[k] = temp[k];
+                }
+                for(uint16 k = 0; k < 32; k++){
+                    bytes32 temp = bytes32(tempY);
+                    S[k + 32] = temp[k];
+                }
+                uint256 res = uint256(sha256(S));
+                (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
+                (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
+            }
+        }
 
-         for(uint32 i = 0 ; i < allPubKeys.length ; i++){
-             uint256 tempX = allPubKeys[i][0];
-             uint256 tempY = allPubKeys[i][1];
-             for(uint k = 0; k < 32; k++){
-                 bytes32 temp = bytes32(tempX);
-                 S[k] = temp[k];
-             }
-             for(uint k = 0; k < 32; k++){
-                 bytes32 temp = bytes32(tempY);
-                 S[k + 32] = temp[k];
-             }
-             uint256 res = bytesToUint256(sha256(S));
-             (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
-             (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
-         }
-
-        // require(pubKeyX == pubKeyX1, "pubKey recover fail");
         /*Schnorr签名的验证*/
         require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+        // require(Schnorr.verify(signature, keyX, keyY, rx, ry, _hash), "sig: address doesn't match");
 
         if (_typ == ValidationType.BLOCK) {
             blockValidationResults[message] = _result;
@@ -146,15 +148,6 @@ contract OracleContract {
                 payable(validators[i]).transfer(address(this).balance); 
             }
         }
-
-        delete allPubKeys;
     }
 
-    function bytesToUint256(bytes32 b) public pure returns (uint256){
-        uint256 number;
-        for(uint i= 0; i < b.length; i++){
-            number = number + uint8(b[i])*(2**(8*(b.length-(i+1))));
-        }
-        return  number;
-    }
 }
