@@ -60,15 +60,15 @@ contract OracleContract {
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 keyX, bytes memory keyBytes, address[] memory validators) external {
+    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 hashScalar0,  uint256 hashScalar2, address[] memory validators) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, keyX, keyBytes, validators);
+        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators);
         isValidateTime = false;
     }
 
-    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 keyX, bytes memory keyBytes, address[] memory validators) external {
+    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 hashScalar0,  uint256 hashScalar2, address[] memory validators) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, keyX, keyBytes, validators);
+        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, hashScalar0, hashScalar2, validators);
         isValidateTime = false;
     }
 
@@ -76,7 +76,7 @@ contract OracleContract {
         ValidationType _typ,
         bool _result,
         bytes32 message,
-        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 keyX, bytes memory keyBytes,
+        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, uint256 hashScalar0,  uint256 hashScalar2,
         address[] memory validators
     ) private {
 
@@ -95,7 +95,6 @@ contract OracleContract {
             
         }
         require(allPubKeys.length >= currentRank, "low total rank");
-        require(allPubKeys[0][0] == keyX, "int key not equal");
         
         // TODO:公钥重新聚合
         bytes memory S = new bytes((allPubKeys.length + 1) * 64);
@@ -106,11 +105,6 @@ contract OracleContract {
                 for(uint32 k = 0; k < temp.length; k++){                   
                     S[index] = temp[k];
                     index++;
-                    if(i == 0 && j == 0){
-                        require(temp[0] == keyBytes[0], "byte not equal 0");
-                        require(temp[1] == keyBytes[1], "byte not equal 1");
-                        require(temp[2] == keyBytes[2], "byte not equal 2");
-                    }
                 }               
             }
         }
@@ -130,7 +124,12 @@ contract OracleContract {
                 S[k + 32] = temp[k];
             }
             uint256 res = bytesToUint256(sha256(S));
-
+            if(i == 0){
+                require(hashScalar0 == res, "scalar 0 not equal");
+            }
+            if(i == 2){
+                require(hashScalar2 == res, "scalar 2 not equal");
+            }
             (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
             (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
         }
