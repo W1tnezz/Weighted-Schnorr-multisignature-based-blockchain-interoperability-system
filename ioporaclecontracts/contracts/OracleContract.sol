@@ -103,13 +103,15 @@ contract OracleContract {
         for(uint32 i = 0 ; i < allPubKeys.length ; i++){
             for(uint32 j = 0; j < 2; j++){
                 bytes memory temp = toBytes(allPubKeys[i][j]);
-                for(uint32 k = 0; k < temp.length; k++){
-                    
+                for(uint32 k = 0; k < temp.length; k++){                   
                     S[index] = temp[k];
                     index++;
-                }
-                require(false, string(temp));
-                
+                    if(k == 0){
+                        require(temp[0] == keyBytes[0], "byte not equal 0");
+                        require(temp[1] == keyBytes[1], "byte not equal 1");
+                        require(temp[2] == keyBytes[2], "byte not equal 2");
+                    }
+                }               
             }
         }
 
