@@ -178,7 +178,7 @@ func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
 }
 
 func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleContractValidationRequest, typ ValidateRequest_Type) error {
-	result, MulSig, MulR, _hash, MulY, nodes, err := a.AggregateValidationResults(ctx, event.Hash, typ)
+	result, MulSig, MulR, _hash, MulY, nodes, pkSet, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
 	pk, err := PointToBig(MulY)
 	fmt.Println(pk)
@@ -212,9 +212,9 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, pk[0], pk[1], R[0], R[1], hash, nodes, pkSet)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, pk[0], pk[1], R[0], R[1], hash, nodes, pkSet)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -232,7 +232,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	return nil
 }
 
-func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, kyber.Point, []common.Address, error) {
+func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash common.Hash, typ ValidateRequest_Type) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, kyber.Point, []common.Address, [][2]*big.Int, error) {
 
 	Signatures := make([][]kyber.Scalar, 0)
 	Rs := make([][]kyber.Point, 0)
@@ -330,8 +330,22 @@ loop:
 
 	index := 64
 	S := make([]byte, (totalRank+1)*64)
+	
+	pkSet := make([][2]*big.Int, 0)
+
+	zeroPointBytes := make([]byte, 64)
+	pointS := a.suite.G1().Point().Base()
+	pointS.UnmarshalBinary(zeroPointBytes)
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
+			// 构造Point累加形式的S
+			PKbytes := append(PK[i][j][0].Bytes(), PK[i][j][1].Bytes()...)
+			PKpoint := a.suite.G1().Point().Base()
+			PKpoint.UnmarshalBinary(PKbytes)
+			pointS = a.suite.G1().Point().Add(pointS, PKpoint)
+
+			pkSet = append(pkSet, PK[i][j])
+
 			for k := 0; k < 2; k++ {
 				tmp := PK[i][j][k].Bytes()
 				for _, byteTmp := range tmp {
@@ -353,7 +367,7 @@ loop:
 		for j := 0; j < len(PK[i]); j++ {
 
 			tmpX := PK[i][j][0]
-			tmpY := PK[i][j][1]
+			tmpY := PK[i][j][1]		
 			tmpXByte := tmpX.Bytes()
 			XByte := make([]byte, 32)
 
@@ -390,11 +404,20 @@ loop:
 				fmt.Println("translate pk ", err)
 			}
 
+			// 累加S
+			summaryS := a.suite.G1().Point().Add(pointS, pk)
+			summarySBytes, err := summaryS.MarshalBinary()
+			if err != nil {
+				fmt.Errorf("Marshal point err: ", err)
+			}
+			fmt.Println(len(summarySBytes))
+
 			hash1 := sha256.New()
 
-			hash1.Write(S)
+			// hash1.Write(S)
+			hash1.Write(summarySBytes)
 			aI := hash1.Sum(nil)
-
+			
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
 			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
 			MulY.Add(MulY, a.suite.G1().Point().Mul(aScalar, pk))
@@ -419,7 +442,7 @@ loop:
 	fmt.Println("435", right.Equal(left))
 	a.enrollNodes = []int64{}
 
-	return true, MulSignature, MulR, _hash, MulY, nodes, nil
+	return true, MulSignature, MulR, _hash, MulY, nodes, pkSet, nil
 
 }
 

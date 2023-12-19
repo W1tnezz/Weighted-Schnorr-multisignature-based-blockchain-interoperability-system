@@ -322,7 +322,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, s
 		return nil, fmt.Errorf("blocknumber: %w", err)
 	}
 
-	valid := false
+	valid := true
 	if found {
 		confirmed := blockNumber - receipt.BlockNumber.Uint64()
 		valid = confirmed >= CONFIRMATIONS
@@ -347,7 +347,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, s
 	return &ValidateResult{
 		hash,
 		valid,
-		receipt.BlockNumber,
+		big.NewInt(0),
 		sig[0],
 		sig[1],
 		v.reputation,

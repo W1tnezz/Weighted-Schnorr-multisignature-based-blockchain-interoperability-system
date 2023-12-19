@@ -5,8 +5,8 @@
     "oracleContractAddress": "0x923C26Be69A53A0470cf40fA2a59C21C86991d5D"
   },
   "ethereum": {
-    "sourceAddress": "ws://127.0.0.1:7545",
-    "targetAddress": "ws://127.0.0.1:7545",
+    "sourceAddress": "ws://127.0.0.1:8545",
+    "targetAddress": "ws://127.0.0.1:8545",
     "privateKey": "2362196958cb01ee5b81143b664b06932eddfc14173f9efcafac74529159dbfe",
     "chainID":1337
   },

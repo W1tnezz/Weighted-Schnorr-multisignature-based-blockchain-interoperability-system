@@ -49,7 +49,7 @@ contract OracleContract {
     }
 
     function validateTransaction(bytes32 _message, uint256 size, uint256 minRank) external payable minFee(size) {
-        require(!isValidateTime, "Another validate is in progress!");
+        // require(!isValidateTime, "Another validate is in progress!");
         isValidateTime = true;
         emit ValidationRequest(ValidationType.TRANSACTION, msg.sender, _message, size, minRank);
     }
@@ -58,19 +58,22 @@ contract OracleContract {
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators) external {
+    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature,uint256 pubKeyX, uint256 pubKeyY, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators, uint256[2][] memory pubKeyArray) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, validators);
+        // submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, validators);
+        submitValidationResult2(ValidationType.BLOCK, _result, message, signature, pubKeyX, pubKeyY, rx, ry, _hash, validators, pubKeyArray);
         isValidateTime = false;
     }
 
-    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators) external {
+    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature,uint256 pubKeyX, uint256 pubKeyY, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators, uint256[2][] memory pubKeyArray) external {
         require(isValidateTime, "Not validate time!");
-        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, validators);
+        // submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, validators);
+        submitValidationResult2(ValidationType.BLOCK, _result, message, signature, pubKeyX, pubKeyY, rx, ry, _hash, validators, pubKeyArray);
         isValidateTime = false;
     }
 
-    function submitValidationResult(
+    // 点加进行Hash恢复公钥，gas: 440616
+    function submitValidationResult0(
         ValidationType _typ,
         bool _result,
         bytes32 message,
@@ -90,18 +93,12 @@ contract OracleContract {
         require(totalRank >= currentRank, "low total rank");
             
         //公钥重新聚合
-        bytes memory S = new bytes((totalRank + 1) * 64);
-        uint256 index = 64;
+        uint256 Sx = 0;
+        uint256 Sy = 0;
         for(uint16 i = 0; i < validators.length; i++){
             uint256[2][] memory keys = registryContract.getNodePublicKeys(validators[i]);
             for(uint16 j = 0 ; j < keys.length; j++){
-                for(uint16 k = 0; k < 2; k++){
-                    bytes32 temp = bytes32(keys[j][k]);
-                    for(uint16 l = 0; l < temp.length; l++){
-                        S[index] = temp[l];
-                        index++;
-                    }
-                }
+                (Sx, Sy) = BN256G1.addPoint([Sx, Sy, keys[j][0], keys[j][1]]);
             }
         }
         
@@ -113,15 +110,12 @@ contract OracleContract {
             for(uint16 j = 0 ; j < keys.length ; j++){
                 uint256 tempX = keys[j][0];
                 uint256 tempY = keys[j][1];
-                for(uint16 k = 0; k < 32; k++){
-                    bytes32 temp = bytes32(tempX);
-                    S[k] = temp[k];
-                }
-                for(uint16 k = 0; k < 32; k++){
-                    bytes32 temp = bytes32(tempY);
-                    S[k + 32] = temp[k];
-                }
-                uint256 res = uint256(sha256(S));
+
+                uint256 pkX;
+                uint256 pkY;
+                (pkX, pkY) = BN256G1.addPoint([tempX, tempY, Sx, Sy]);
+                
+                uint256 res = uint256(sha256(abi.encode(pkX, pkY)));
                 (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
                 (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
             }
@@ -150,4 +144,124 @@ contract OracleContract {
         }
     }
 
+    // 字节序列拼接构造公钥，gas: 574237
+    function submitValidationResult1(
+        ValidationType _typ,
+        bool _result,
+        bytes32 message,
+        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, 
+        address[] memory validators
+    ) private {
+        require(_typ != ValidationType.UNKNOWN, "unknown validation type");
+        require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
+    
+        uint256 totalRank = 0;
+        for(uint16 i = 0 ; i < validators.length ; i++){
+            // 验证单个节点的信誉值；
+            uint256 rank = registryContract.getNodeRank(validators[i]);
+            require(rank >= currentRank, "low singal rank");
+            totalRank += rank;
+        }
+        require(totalRank >= currentRank, "low total rank");
+            
+        //公钥重新聚合
+        uint256[2][] memory keys1 = registryContract.getNodePublicKeys(validators[0]);
+        bytes memory S = abi.encodePacked(bytes32(keys1[0][0]), bytes32(keys1[0][1]));
+
+        for(uint16 i = 0; i < validators.length; i++){
+            uint256[2][] memory keys = registryContract.getNodePublicKeys(validators[i]);
+            for(uint16 j = 0 ; j < keys.length; j++){
+                if(i == 0 && j == 0){
+                    continue;
+                } else{
+                    S = abi.encodePacked(S, bytes32(keys[j][0]), bytes32(keys[j][1]));
+                }
+            }
+        }
+        
+        uint256 pubKeyX = 0;
+        uint256 pubKeyY = 0;
+
+        for(uint16 i = 0; i < validators.length; i++){
+            uint256[2][] memory keys = registryContract.getNodePublicKeys(validators[i]);
+            for(uint16 j = 0 ; j < keys.length ; j++){
+                uint256 tempX = keys[j][0];
+                uint256 tempY = keys[j][1];
+                
+                uint256 res = uint256(sha256(abi.encodePacked(bytes32(keys[j][0]), bytes32(keys[j][1]), S)));
+                (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
+                (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
+            }
+        }
+
+        /*Schnorr签名的验证*/
+        require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+        // require(Schnorr.verify(signature, keyX, keyY, rx, ry, _hash), "sig: address doesn't match");
+
+        if (_typ == ValidationType.BLOCK) {
+            blockValidationResults[message] = _result;
+        } else if (_typ == ValidationType.TRANSACTION) {
+            txValidationResults[message] = _result;
+        }
+
+        // 给当前合约的调用者（聚合器）转账 
+        payable(msg.sender).transfer(AGGREGATE_FEE);     //此处完成给聚合器的报酬转账
+        // 给所有的参与验证的验证器节点转账
+
+        for(uint32 i = 0 ; i < validators.length ; i++){
+            if(address(this).balance >= BASE_FEE * registryContract.getNodeRank(validators[i])){
+                payable(validators[i]).transfer(BASE_FEE * registryContract.getNodeRank(validators[i])); 
+            } else{
+                payable(validators[i]).transfer(address(this).balance); 
+            }
+        }
+    }
+
+
+    // 直接上传多重公钥，以及签名者公钥集合 gas: 273551
+    function submitValidationResult2(
+        ValidationType _typ,
+        bool _result,
+        bytes32 message,
+        uint256 signature,uint256 pubKeyX, uint256 pubKeyY, uint256 rx , uint256 ry, uint256 _hash, 
+        address[] memory validators, uint256[2][] memory pubKeyArray
+    ) private {
+        require(_typ != ValidationType.UNKNOWN, "unknown validation type");
+        require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
+        require(pubKeyArray.length >= currentRank, "low total rank");
+
+        uint32 index = 0;
+        for(uint16 i = 0 ; i < validators.length ; i++){
+            // 验证单个节点的信誉值；
+            uint256[2][] memory keys = registryContract.getNodePublicKeys(validators[i]);
+            require(keys.length >= currentRank, "low singal rank");
+            
+            for(uint16 j = 0; j < keys.length; j++){
+                require(pubKeyArray[index][0] == keys[j][0] && pubKeyArray[index][1] == keys[j][1], "pubkey not equal!");
+                index++;
+            }
+        }
+
+        /*Schnorr签名的验证*/
+        require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+        // require(Schnorr.verify(signature, keyX, keyY, rx, ry, _hash), "sig: address doesn't match");
+
+        if (_typ == ValidationType.BLOCK) {
+            blockValidationResults[message] = _result;
+        } else if (_typ == ValidationType.TRANSACTION) {
+            txValidationResults[message] = _result;
+        }
+
+        // 给当前合约的调用者（聚合器）转账 
+        payable(msg.sender).transfer(AGGREGATE_FEE);     //此处完成给聚合器的报酬转账
+        // 给所有的参与验证的验证器节点转账
+
+        for(uint32 i = 0 ; i < validators.length ; i++){
+            if(address(this).balance >= BASE_FEE * registryContract.getNodeRank(validators[i])){
+                payable(validators[i]).transfer(BASE_FEE * registryContract.getNodeRank(validators[i])); 
+            } else{
+                payable(validators[i]).transfer(address(this).balance); 
+            }
+        }
+    }
 }
