@@ -121,6 +121,7 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 	}
 
 	return v.SignForSchnorr(message, enrollNodes)
+	// return v.SignForBls(message, enrollNodes)
 
 }
 func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, error) {
@@ -134,20 +135,17 @@ func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, e
 		fmt.Println("translate Message hash :", err)
 	}
 
-	s := make([]kyber.Scalar, 0)
-	for i := int64(0); i < v.reputation; i++ {
-		sI := v.suite.G1().Scalar().Add(rI[i], v.suite.G1().Scalar().Mul(v.suite.G1().Scalar().SetBytes(e), v.schnorrPrivateKey[i]))
-		s = append(s, sI)
-	}
-
 	signature := make([][]byte, 2)
-	for _, si := range s {
-		siBytes, _ := si.MarshalBinary()
+
+	for i := int64(0); i < v.reputation; i++ {
+		sI := v.suite.G1().Point().Mul(v.schnorrPrivateKey[i], _hash)
+		siBytes, _ := sI.MarshalBinary()
 		for _, b := range siBytes {
 			signature[0] = append(signature[0], b)
 		}
-
 	}
+	return signature, nil
+
 }
 
 func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byte, error) {

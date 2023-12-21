@@ -333,6 +333,21 @@ func (a *Aggregator) HandleResultForSchnorr(result *ValidateResponse, scalarSize
 	return sI, RI
 }
 
+func (a *Aggregator) HandleResultForBls(result *ValidateResponse, PointSize int) []kyber.Point {
+	sI := make([]kyber.Point, 0)
+
+	for i := int64(0); i < result.Reputation; i++ {
+		sSliceByte := result.Signature[i*int64(PointSize) : (i+1)*int64(PointSize)]
+
+		sSlice := a.suite.G1().Point().Base()
+		err := sSlice.UnmarshalBinary(sSliceByte)
+		if err != nil {
+			fmt.Println("UnmarshalBinary Si for Bls ,", err)
+		}
+		sI = append(sI, sSlice)
+	}
+}
+
 func (a *Aggregator) AggregateSignatureForSchnorr(txHash common.Hash, typ ValidateRequest_Type, Signatures [][]kyber.Scalar, Rs [][]kyber.Point, PK [][][2]*big.Int, nodes []common.Address, totalRank int64) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, kyber.Point, []common.Address, [][2]*big.Int, error) {
 	index := 64
 	S := make([]byte, (totalRank+1)*64)
@@ -484,7 +499,6 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 	MulSignature := a.suite.G1().Point().Null()
 	// MulR := a.suite.G1().Point().Null()
 	MulY := a.suite.G1().Point().Null()
-
 
 	for i := 0; i < len(nodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
