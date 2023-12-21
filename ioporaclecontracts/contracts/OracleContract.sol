@@ -58,28 +58,28 @@ contract OracleContract {
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature,uint256 pubKeyX, uint256 pubKeyY, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators, uint256[2][] memory pubKeyArray) external {
-        require(isValidateTime, "Not validate time!");
+    function submitBlockValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators) external {
+        // require(isValidateTime, "Not validate time!");
         // submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, validators);
-        submitValidationResult2(ValidationType.BLOCK, _result, message, signature, pubKeyX, pubKeyY, rx, ry, _hash, validators, pubKeyArray);
-        isValidateTime = false;
+        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, validators);
+        // isValidateTime = false;
     }
 
-    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature,uint256 pubKeyX, uint256 pubKeyY, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators, uint256[2][] memory pubKeyArray) external {
-        require(isValidateTime, "Not validate time!");
+    function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators) external {
+        // require(isValidateTime, "Not validate time!");
         // submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, validators);
-        submitValidationResult2(ValidationType.BLOCK, _result, message, signature, pubKeyX, pubKeyY, rx, ry, _hash, validators, pubKeyArray);
-        isValidateTime = false;
+        submitValidationResult(ValidationType.BLOCK, _result, message, signature, rx, ry, _hash, validators);
+        // isValidateTime = false;
     }
 
     // 点加进行Hash恢复公钥，gas: 440616
-    function submitValidationResult0(
+    function submitValidationResult(
         ValidationType _typ,
         bool _result,
         bytes32 message,
         uint256 signature, uint256 rx , uint256 ry, uint256 _hash, 
         address[] memory validators
-    ) private {
+    ) public {
         require(_typ != ValidationType.UNKNOWN, "unknown validation type");
         require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
     
