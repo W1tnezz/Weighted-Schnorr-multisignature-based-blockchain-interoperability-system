@@ -163,6 +163,7 @@ loop:
 	}
 
 	R := v.suite.G1().Point().Null()
+	fmt.Println(v.RAll)
 	for key := range v.RAll {
 		R.Add(R, v.RAll[key])
 	}
@@ -285,28 +286,33 @@ func (v *Validator) BroadcastResponse(R *RDeal) error {
 
 func (v *Validator) sendR(enrollNodes []int64, R []byte) {
 	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
-	for i := range enrollNodes {
-		if enrollNodes[i] == node.Index.Int64() {
-			continue
-		}
-		enrollNode, _ := v.registryContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodes[i]))
-		conn, err := v.connectionManager.FindByAddress(enrollNode.Addr)
-		if err != nil {
-			log.Errorf("Find connection by address: %v", err)
-			continue
-		}
-		client := NewOracleNodeClient(conn)
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-
-		request := &SendRRequest{
-			R: &RDeal{R: R, Index: node.Index.Bytes()},
-		}
-		log.Infof("Sending R to node %d", enrollNodes[i])
-		if _, err := client.SendR(ctx, request); err != nil {
-			log.Errorf("Send deal: %v", err)
-		}
-		cancel()
+	request := &SendRRequest{
+		R: &RDeal{R: R, Index: node.Index.Bytes()},
 	}
+	v.HandleR(request.R)
+
+	// for i := range enrollNodes {
+	// 	if enrollNodes[i] == node.Index.Int64() {
+	// 		continue
+	// 	}
+	// 	enrollNode, _ := v.registryContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodes[i]))
+	// 	conn, err := v.connectionManager.FindByAddress(enrollNode.Addr)
+	// 	if err != nil {
+	// 		log.Errorf("Find connection by address: %v", err)
+	// 		continue
+	// 	}
+	// 	client := NewOracleNodeClient(conn)
+	// 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+
+	// 	request := &SendRRequest{
+	// 		R: &RDeal{R: R, Index: node.Index.Bytes()},
+	// 	}
+	// 	log.Infof("Sending R to node %d", enrollNodes[i])
+	// 	if _, err := client.SendR(ctx, request); err != nil {
+	// 		log.Errorf("Send deal: %v", err)
+	// 	}
+	// 	cancel()
+	// }
 }
 
 func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, size int64, minRank int64) (*ValidateResult, error) {
