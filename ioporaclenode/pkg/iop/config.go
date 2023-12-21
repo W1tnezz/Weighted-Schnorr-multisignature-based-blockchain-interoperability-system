@@ -10,7 +10,6 @@ type Config struct {
 }
 
 type ContractsConfig struct {
-	RegistryContractAddress string
 	OracleContractAddress   string
 	DistKeyContractAddress  string
 }

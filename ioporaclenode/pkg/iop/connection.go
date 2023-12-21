@@ -13,24 +13,24 @@ import (
 
 type ConnectionManager struct {
 	sync.RWMutex
-	registryContract *RegistryContractWrapper
+	oracleContract *OracleContractWrapper
 	account          common.Address
 	connections      map[common.Address]*grpc.ClientConn
 }
 
-func NewConnectionManager(registryContract *RegistryContractWrapper, account common.Address) *ConnectionManager {
+func NewConnectionManager(oracleContract *OracleContractWrapper, account common.Address) *ConnectionManager {
 	return &ConnectionManager{
-		registryContract: registryContract,
+		oracleContract:   oracleContract,
 		account:          account,
 		connections:      make(map[common.Address]*grpc.ClientConn),
 	}
 }
 
 func (m *ConnectionManager) WatchAndHandleRegisterOracleNodeLog(ctx context.Context) error {
-	sink := make(chan *RegistryContractRegisterOracleNode)
+	sink := make(chan *OracleContractRegisterOracleNode)
 	defer close(sink)
 
-	sub, err := m.registryContract.WatchRegisterOracleNode(
+	sub, err := m.oracleContract.WatchRegisterOracleNode(
 		&bind.WatchOpts{
 			Context: context.Background(),
 		},
@@ -57,8 +57,8 @@ func (m *ConnectionManager) WatchAndHandleRegisterOracleNodeLog(ctx context.Cont
 	}
 }
 
-func (m *ConnectionManager) HandleRegisterOracleNodeLog(event *RegistryContractRegisterOracleNode) error {
-	node, err := m.registryContract.FindOracleNodeByAddress(nil, event.Sender)
+func (m *ConnectionManager) HandleRegisterOracleNodeLog(event *OracleContractRegisterOracleNode) error {
+	node, err := m.oracleContract.FindOracleNodeByAddress(nil, event.Sender)
 	if err != nil {
 		return fmt.Errorf("find oracle node by address %s: %w", event.Sender, err)
 	}
@@ -70,7 +70,7 @@ func (m *ConnectionManager) HandleRegisterOracleNodeLog(event *RegistryContractR
 
 func (m *ConnectionManager) InitConnections() error {
 	log.Info("Initialize connections to other nodes")
-	nodes, err := m.registryContract.FindOracleNodes()
+	nodes, err := m.oracleContract.FindOracleNodes()
 	if err != nil {
 		return fmt.Errorf("find nodes: %w", err)
 	}
@@ -87,7 +87,7 @@ func (m *ConnectionManager) InitConnections() error {
 }
 
 // 创建连接,使用数组保存,对每一个节点使用数组保存连接状态
-func (m *ConnectionManager) NewConnection(node RegistryContractOracleNode) (*grpc.ClientConn, error) {
+func (m *ConnectionManager) NewConnection(node OracleContractOracleNode) (*grpc.ClientConn, error) {
 	m.Lock()
 	// defer是延迟执行语句,当Windows界面的语句都执行完,才会执行defer,并且多个defer之间使用逆序执行顺序
 	defer m.Unlock()

@@ -26,7 +26,6 @@ type Aggregator struct {
 	ethClient         *ethclient.Client
 	connectionManager *ConnectionManager
 	oracleContract    *OracleContractWrapper
-	registryContract  *RegistryContractWrapper
 	account           common.Address
 	ecdsaPrivateKey   *ecdsa.PrivateKey
 	chainId           *big.Int
@@ -42,7 +41,6 @@ func NewAggregator(
 	ethClient *ethclient.Client,
 	connectionManager *ConnectionManager,
 	oracleContract *OracleContractWrapper,
-	registryContract *RegistryContractWrapper,
 	account common.Address,
 	ecdsaPrivateKey *ecdsa.PrivateKey,
 	chainId *big.Int,
@@ -53,7 +51,6 @@ func NewAggregator(
 		ethClient:         ethClient,
 		connectionManager: connectionManager,
 		oracleContract:    oracleContract,
-		registryContract:  registryContract,
 		account:           account,
 		ecdsaPrivateKey:   ecdsaPrivateKey,
 		chainId:           chainId,
@@ -82,7 +79,7 @@ func (a *Aggregator) WatchAndHandleValidationRequestsLog(ctx context.Context, o 
 		case event := <-sink:
 			typ := ValidateRequest_Type(event.Typ)
 			log.Infof("Received ValidationRequest event for %s type with hash %s", typ, common.Hash(event.Hash))
-			isAggregator, err := a.registryContract.IsAggregator(nil, a.account)
+			isAggregator, err := a.oracleContract.IsAggregator(nil, a.account)
 			o.isAggregator = isAggregator
 			if err != nil {
 				log.Errorf("Is aggregator: %v", err)
@@ -114,9 +111,9 @@ func (a *Aggregator) ValidatorEnroll(o *OracleNode) {
 	}
 
 	// 此时，该节点参与，但是需要先向聚合器报名，此时需要发送自己的信誉值
-	node, _ := o.registryContract.FindOracleNodeByAddress(nil, a.account)
+	node, _ := o.oracleContract.FindOracleNodeByAddress(nil, a.account)
 
-	aggregator, _ := o.registryContract.GetAggregator(nil)
+	aggregator, _ := o.oracleContract.GetAggregator(nil)
 	conn, err := o.connectionManager.FindByAddress(aggregator)
 	if err != nil {
 		log.Errorf("Find connection by address: %v", err)
@@ -217,7 +214,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	case ValidateRequest_block:
 		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitValidationResult(auth, sig, R[0], R[1], hash, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -267,9 +264,9 @@ loop:
 	}
 
 	for _, enrollNodeIndex := range a.enrollNodes {
-		enrollNode, err := a.registryContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodeIndex))
+		enrollNode, err := a.oracleContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodeIndex))
 
-		node, err := a.registryContract.FindOracleNodeByAddress(nil, enrollNode.Addr)
+		node, err := a.oracleContract.FindOracleNodeByAddress(nil, enrollNode.Addr)
 		conn, err := a.connectionManager.FindByAddress(node.Addr)
 		if err != nil {
 			log.Errorf("Find connection by address: %v", err)
