@@ -46,9 +46,9 @@ type Validator struct {
 	ecdsaPrivateKey   *ecdsa.PrivateKey
 	ethClient         *ethclient.Client
 	connectionManager *ConnectionManager
-	RAll              map[uint64]kyber.Point
+	RAll              map[common.Address]kyber.Point
 	account           common.Address
-    kafkaWriter       *kafka.Writer
+	kafkaWriter       *kafka.Writer
 	kafkaReader       *kafka.Reader
 	schnorrPrivateKey []kyber.Scalar
 	reputation        int64
@@ -62,10 +62,10 @@ func NewValidator(
 	ecdsaPrivateKey *ecdsa.PrivateKey,
 	ethClient *ethclient.Client,
 	connectionManager *ConnectionManager,
-	RAll map[uint64]kyber.Point,
+	RAll map[common.Address]kyber.Point,
 	account common.Address,
 	kafkaWriter *kafka.Writer,
-	kafkaReader       *kafka.Reader,
+	kafkaReader *kafka.Reader,
 	schnorrPrivateKey []kyber.Scalar,
 	reputation int64,
 
@@ -87,8 +87,13 @@ func NewValidator(
 	}
 }
 
+func (v *Validator) End() {
+	v.enrolled = false
+	v.RAll = make(map[common.Address]kyber.Point)
+}
+
 func (v *Validator) Sign(message []byte) ([][]byte, error) {
-	
+	defer v.End()
 	//此时要获取所有的报名节点，要考虑是否达到阈值，循环质询
 	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
 
@@ -148,7 +153,7 @@ func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byt
 	}
 	time.Sleep(5 * time.Second)
 
-	v.sendR(enrollNodes, RPIbytes)
+	v.sendR(RPIbytes)
 
 	// 此时需要获取到其他人的R,此时需要等待其他人广播完成，获取完全足够的R
 	timeout := time.After(Timeout)
@@ -209,11 +214,19 @@ func (v *Validator) ListenAndProcess(o *OracleNode) error {
 		if err != nil {
 			break
 		}
-
-		// TODO: 处理kafka消息
+		// 处理kafka消息
 		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+		if v.enrolled {
+			go func() {
+				RPoint := v.suite.G1().Point()
+				err := RPoint.UnmarshalBinary(m.Value)
+				if err != nil {
+					log.Errorf("R transform to Point: %v", err)
+				}
+				v.RAll[common.Address(m.Key)] = RPoint
+			}()
+		}
 	}
-
 	return nil
 }
 
@@ -228,49 +241,31 @@ func (v *Validator) publishHandler(msg mqtt.Message, o *OracleNode) {
 	if err := json.Unmarshal(iotaMsg.Payload.(*iota.Indexation).Data, &response); err != nil {
 		log.Errorf("Unmarshal response: %v", err)
 	}
-	isAggregator := o.isAggregator
-	if isAggregator {
-		return
-	}
-	go func() {
-		RPoint := v.suite.G1().Point()
-		err := RPoint.UnmarshalBinary(response.R)
-		if err != nil {
-			log.Errorf("R transform to Point: %v", err)
-		}
-		v.RAll[new(big.Int).SetBytes(response.Index).Uint64()] = RPoint
-	}()
 }
 
-func (v *Validator) sendR(enrollNodes []int64, R []byte) {
-	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
-	request := &SendRRequest{
-		R: &RDeal{R: R, Index: node.Index.Bytes()},
+func (v *Validator) sendR(R []byte) {
+	messages := []kafka.Message{
+		{
+			Key:   []byte(v.account.String()),
+			Value: R,
+		},
 	}
-	v.HandleR(request.R)
-
-	// for i := range enrollNodes {
-	// 	if enrollNodes[i] == node.Index.Int64() {
-	// 		continue
-	// 	}
-	// 	enrollNode, _ := v.registryContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodes[i]))
-	// 	conn, err := v.connectionManager.FindByAddress(enrollNode.Addr)
-	// 	if err != nil {
-	// 		log.Errorf("Find connection by address: %v", err)
-	// 		continue
-	// 	}
-	// 	client := NewOracleNodeClient(conn)
-	// 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-
-	// 	request := &SendRRequest{
-	// 		R: &RDeal{R: R, Index: node.Index.Bytes()},
-	// 	}
-	// 	log.Infof("Sending R to node %d", enrollNodes[i])
-	// 	if _, err := client.SendR(ctx, request); err != nil {
-	// 		log.Errorf("Send deal: %v", err)
-	// 	}
-	// 	cancel()
-	// }
+	var err error
+	const retries = 3
+	// 重试3次
+	for i := 0; i < retries; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err = v.kafkaWriter.WriteMessages(ctx, messages...)
+		if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
+			time.Sleep(time.Millisecond * 250)
+			continue
+		}
+		if err != nil {
+			log.Fatalf("unexpected error %v", err)
+		}
+		break
+	}
 }
 
 func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, size int64, minRank int64) (*ValidateResult, error) {
@@ -307,7 +302,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, s
 	if err != nil {
 		return nil, fmt.Errorf("tbls sign: %w", err)
 	}
-	v.RAll = make(map[uint64]kyber.Point)
+
 	return &ValidateResult{
 		hash,
 		valid,

@@ -15,11 +15,7 @@ func (n *OracleNode) Enroll(_ context.Context, request *SendEnrollRequest) (*Sen
 	return &SendEnrollResponse{EnrollSuccess: success}, nil
 }
 
-func (n *OracleNode) SendR(_ context.Context, request *SendRRequest) (*SendRResponse, error) {
-	// 这里接收到了传递过来的参数R
-	n.validator.HandleR(request.R)
-	return &SendRResponse{}, nil
-}
+
 
 func (n *OracleNode) GetEnrollNodes(_ context.Context, request *SendGetEnrollNodesRequest) (*SendEnrollNodesResponse, error) {
 	enrollNodes, success := n.aggregator.getEnrollNodes(request.GetNodes)

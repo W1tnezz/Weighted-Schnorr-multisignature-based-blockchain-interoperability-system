@@ -109,7 +109,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	account := common.HexToAddress(hexAddress)
 
 	connectionManager := NewConnectionManager(registryContractWrapper, account)
-	RAll := make(map[uint64]kyber.Point)
+	RAll := make(map[common.Address]kyber.Point)
 	enrollNodes := []int64{}
 
 	// 初始化kafka Writer 和 Reader

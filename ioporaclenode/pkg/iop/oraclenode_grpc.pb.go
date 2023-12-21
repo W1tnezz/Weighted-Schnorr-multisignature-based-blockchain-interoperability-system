@@ -19,7 +19,6 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	OracleNode_SendR_FullMethodName          = "/iop.OracleNode/SendR"
 	OracleNode_Validate_FullMethodName       = "/iop.OracleNode/Validate"
 	OracleNode_Enroll_FullMethodName         = "/iop.OracleNode/Enroll"
 	OracleNode_GetEnrollNodes_FullMethodName = "/iop.OracleNode/GetEnrollNodes"
@@ -43,14 +42,6 @@ func NewOracleNodeClient(cc grpc.ClientConnInterface) OracleNodeClient {
 	return &oracleNodeClient{cc}
 }
 
-func (c *oracleNodeClient) SendR(ctx context.Context, in *SendRRequest, opts ...grpc.CallOption) (*SendRResponse, error) {
-	out := new(SendRResponse)
-	err := c.cc.Invoke(ctx, OracleNode_SendR_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
 
 func (c *oracleNodeClient) Validate(ctx context.Context, in *ValidateRequest, opts ...grpc.CallOption) (*ValidateResponse, error) {
 	out := new(ValidateResponse)

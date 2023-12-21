@@ -3,19 +3,6 @@ syntax = "proto3";
 package iop;
 option go_package = "./iop";
 
-message SendRRequest {
-  RDeal R = 1;
-}
-
-message RDeal {
-  bytes R = 1;
-  bytes index = 2;
-}
-
-message SendRResponse {
-}
-
-
 message SendEnrollRequest {
   EnrollDeal Enroll = 1;
 }
@@ -62,7 +49,6 @@ message ValidateResponse {
 }
 
 service OracleNode {
-  rpc SendR(SendRRequest) returns (SendRResponse);
   rpc Validate(ValidateRequest) returns (ValidateResponse);
   rpc Enroll(SendEnrollRequest) returns (SendEnrollResponse);
   rpc GetEnrollNodes(SendGetEnrollNodesRequest) returns (SendEnrollNodesResponse);
