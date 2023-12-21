@@ -417,9 +417,8 @@ func (a *Aggregator) AggregateSignatureForSchnorr(txHash common.Hash, typ Valida
 			summaryS := a.suite.G1().Point().Add(pointS, pk)
 			summarySBytes, err := summaryS.MarshalBinary()
 			if err != nil {
-				fmt.Errorf("Marshal point err: ", err)
+				log.Errorf("Marshal point err: %v", err)
 			}
-			fmt.Println(len(summarySBytes))
 
 			hash1 := sha256.New()
 

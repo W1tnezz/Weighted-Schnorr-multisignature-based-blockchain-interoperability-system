@@ -148,7 +148,7 @@ func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byt
 	if err != nil {
 		log.Errorf("marshal R_Pi error : %v", err)
 	}
-	time.Sleep(5 * time.Second)
+
 	log.Infof("Start send kafka message R")
 	v.sendR(RPIbytes)
 
