@@ -181,7 +181,8 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	result, MulSig, MulR, _hash, MulY, nodes, pkSet, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
 	pk, err := PointToBig(MulY)
-	fmt.Println(pk)
+	_, _ = pk, pkSet
+
 	if err != nil {
 		return fmt.Errorf("aggregate validation results: %w", err)
 	}
@@ -212,9 +213,9 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, pk[0], pk[1], R[0], R[1], hash, nodes, pkSet)
+		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, pk[0], pk[1], R[0], R[1], hash, nodes, pkSet)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -248,7 +249,7 @@ loop:
 	for {
 		select {
 		case <-timeout:
-			fmt.Errorf("Timeout")
+			log.Error("Timeout")
 			break loop
 		default:
 			if a.currentSize >= a.size {
