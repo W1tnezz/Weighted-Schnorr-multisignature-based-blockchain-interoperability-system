@@ -137,6 +137,8 @@ func (a *Aggregator) ValidatorEnroll(o *OracleNode) {
 	if !result.EnrollSuccess {
 		log.Infof("node enroll fail %d", node.Index)
 		return
+	} else {
+		o.validator.enrolled = true
 	}
 }
 

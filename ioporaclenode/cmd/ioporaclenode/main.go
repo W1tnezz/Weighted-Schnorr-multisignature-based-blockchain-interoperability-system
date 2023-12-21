@@ -15,23 +15,27 @@ func main() {
 	configFile := flag.String("c", "./configs/config.json", "filename of the config file")
 	flag.Parse()
 
+	var config iop.Config
+
+	// 公共配置
 	viper.SetConfigFile(*&commonConfig)
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatalf("Read config: %v", err)
 	}
+	if err := viper.Unmarshal(&config); err != nil {
+		log.Fatalf("Unmarshal common config into struct, %v", err)
+	}
 
+	// 节点配置
 	viper.SetConfigFile(*configFile)
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatalf("Read config: %v", err)
 	}
-
-	var config iop.Config
-	err := viper.Unmarshal(&config)
-	if err != nil {
+	if err := viper.Unmarshal(&config); err != nil {
 		log.Fatalf("Unmarshal config into struct, %v", err)
 	}
 
-	log.Infof("Config: %s", config.Ethereum.SourceAddress)
+	log.Println(config)
 
 	log.Infof("Loaded config file %s", *configFile)
 

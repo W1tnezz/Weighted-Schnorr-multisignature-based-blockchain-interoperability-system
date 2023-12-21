@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/iotaledger/hive.go/serializer"
 	iota "github.com/iotaledger/iota.go/v2"
+	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
@@ -47,9 +48,11 @@ type Validator struct {
 	connectionManager *ConnectionManager
 	RAll              map[uint64]kyber.Point
 	account           common.Address
-
+    kafkaWriter       *kafka.Writer
+	kafkaReader       *kafka.Reader
 	schnorrPrivateKey []kyber.Scalar
 	reputation        int64
+	enrolled          bool
 }
 
 func NewValidator(
@@ -61,7 +64,8 @@ func NewValidator(
 	connectionManager *ConnectionManager,
 	RAll map[uint64]kyber.Point,
 	account common.Address,
-
+	kafkaWriter *kafka.Writer,
+	kafkaReader       *kafka.Reader,
 	schnorrPrivateKey []kyber.Scalar,
 	reputation int64,
 
@@ -75,9 +79,11 @@ func NewValidator(
 		connectionManager: connectionManager,
 		RAll:              RAll,
 		account:           account,
-
+		kafkaWriter:       kafkaWriter,
+		kafkaReader:       kafkaReader,
 		schnorrPrivateKey: schnorrPrivateKey,
 		reputation:        reputation,
+		enrolled:          false,
 	}
 }
 
@@ -138,7 +144,7 @@ func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byt
 	RPIbytes, err := RPI.MarshalBinary()
 
 	if err != nil {
-		fmt.Errorf("marshal R_Pi error : %v", err)
+		log.Errorf("marshal R_Pi error : %v", err)
 	}
 	time.Sleep(5 * time.Second)
 
@@ -150,7 +156,7 @@ loop:
 	for {
 		select {
 		case <-timeout:
-			fmt.Errorf("Timeout")
+			log.Errorf("Timeout")
 			break loop
 		default:
 			if len(enrollNodes) == len(v.RAll) {
@@ -198,26 +204,15 @@ loop:
 
 func (v *Validator) ListenAndProcess(o *OracleNode) error {
 
-	// 启动协程监听并处理过程中其他节点发送的Deal
-	go func() {
-		if err := v.ListenAndProcessResponse(o); err != nil {
-			log.Errorf("Listen and process response: %v", err)
+	for {
+		m, err := v.kafkaReader.ReadMessage(context.Background())
+		if err != nil {
+			break
 		}
-	}()
-	return nil
-}
 
-func (v *Validator) ListenAndProcessResponse(o *OracleNode) error {
-	// if token := v.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-	// 	return fmt.Errorf("connect to broker: %w", token.Error())
-	// }
-
-	// topic := fmt.Sprintf("messages/indexation/%s", hex.EncodeToString(v.mqttTopic))
-	// if token := v.mqttClient.Subscribe(topic, 1, func(c mqtt.Client, m mqtt.Message) {
-	// 	v.publishHandler(m, o)
-	// }); token.Wait() && token.Error() != nil {
-	// 	return fmt.Errorf("subscribe to topic: %w", token.Error())
-	// }
+		// TODO: 处理kafka消息
+		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+	}
 
 	return nil
 }
@@ -226,12 +221,12 @@ func (v *Validator) ListenAndProcessResponse(o *OracleNode) error {
 func (v *Validator) publishHandler(msg mqtt.Message, o *OracleNode) {
 	iotaMsg := &iota.Message{}
 	if _, err := iotaMsg.Deserialize(msg.Payload(), serializer.DeSeriModeNoValidation); err != nil {
-		log.Errorf("Malformed mqtt message: %w", err)
+		log.Errorf("Malformed mqtt message: %v", err)
 		return
 	}
 	var response *RDeal
 	if err := json.Unmarshal(iotaMsg.Payload.(*iota.Indexation).Data, &response); err != nil {
-		log.Errorf("Unmarshal response: %w", err)
+		log.Errorf("Unmarshal response: %v", err)
 	}
 	isAggregator := o.isAggregator
 	if isAggregator {
@@ -241,44 +236,10 @@ func (v *Validator) publishHandler(msg mqtt.Message, o *OracleNode) {
 		RPoint := v.suite.G1().Point()
 		err := RPoint.UnmarshalBinary(response.R)
 		if err != nil {
-			fmt.Errorf("R transform to Point: %w", err)
+			log.Errorf("R transform to Point: %v", err)
 		}
 		v.RAll[new(big.Int).SetBytes(response.Index).Uint64()] = RPoint
 	}()
-}
-
-// 这个是发出去的东西进行处理
-func (v *Validator) HandleR(R *RDeal) error {
-	v.Lock()
-	defer v.Unlock()
-
-	if err := v.BroadcastResponse(R); err != nil {
-		return fmt.Errorf("broadcast response: %w", err)
-	}
-	return nil
-}
-
-func (v *Validator) BroadcastResponse(R *RDeal) error {
-	// log.Infof("Broadcasting response for R from %d", new(big.Int).SetBytes(R.Index).Uint64())
-
-	// b, err := json.Marshal(R)
-	// payload := &iota.Indexation{
-	// 	Index: v.mqttTopic,
-	// 	Data:  b,
-	// }
-
-	// msg, err := iota.NewMessageBuilder().
-	// 	Payload(payload).
-	// 	Build()
-	// if err != nil {
-	// 	return fmt.Errorf("build iota message: %w", err)
-	// }
-	// if _, err := v.iotaClient.SubmitMessage(context.Background(), msg); err != nil {
-	// 	return fmt.Errorf("submit message: %w", err)
-	// }
-	// log.Infof("Broadcast for deal %d completed", new(big.Int).SetBytes(R.Index).Uint64())
-
-	return nil
 }
 
 func (v *Validator) sendR(enrollNodes []int64, R []byte) {

@@ -23,7 +23,7 @@ type EthereumConfig struct {
 }
 
 type KafkaConfig struct {
-	IPAddress     string
-	Port          string
+	IpAddress     string
 	Topic         string
+	Partition     int64
 }

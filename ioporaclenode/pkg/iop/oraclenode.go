@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"go.dedis.ch/kyber/v3/util/random"
 	"math/big"
 	"net"
+
+	"go.dedis.ch/kyber/v3/util/random"
 
 	"ioporaclenode/internal/pkg/kyber/pairing/bn256"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/suites"
@@ -33,6 +35,7 @@ type OracleNode struct {
 	schnorrPrivateKey []kyber.Scalar
 	account           common.Address
 	connectionManager *ConnectionManager
+
 	validator         *Validator
 	aggregator        *Aggregator
 	isAggregator      bool
@@ -108,6 +111,25 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	connectionManager := NewConnectionManager(registryContractWrapper, account)
 	RAll := make(map[uint64]kyber.Point)
 	enrollNodes := []int64{}
+
+	// 初始化kafka Writer 和 Reader
+	writer := &kafka.Writer{
+		Addr:                   kafka.TCP(c.BindAddress),
+		Topic:                  c.Kafka.Topic,
+		RequiredAcks:           kafka.RequireAll,
+		Balancer:               &kafka.LeastBytes{},
+		AllowAutoTopicCreation: true,     
+		Async:                  true,  
+	}
+
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:   []string{c.Kafka.IpAddress},
+		Topic:     c.Kafka.Topic,
+		Partition: int(c.Kafka.Partition),
+		MaxBytes:  10e6, // 10MB
+	})
+	
+
 	validator := NewValidator(
 		suite,
 		registryContractWrapper,
@@ -117,7 +139,8 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		connectionManager,
 		RAll,
 		account,
-
+		writer,
+		reader,
 		schnorrPrivateKey,
 		reputation,
 	)
