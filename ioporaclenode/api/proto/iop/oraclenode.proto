@@ -26,7 +26,6 @@ message SendEnrollNodesResponse {
   bool EnrollSuccess = 2;
 }
 
-
 message ValidateRequest {
   enum Type {
     unknown = 0;

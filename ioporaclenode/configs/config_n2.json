@@ -1,20 +1,7 @@
 {
   "bindAddress": "127.0.0.1:25566",
-  "contracts": {
-    "registryContractAddress": "0x27728eC32C8e43fd07160FDc981731F98EF1a84F",
-    "oracleContractAddress": "0x923C26Be69A53A0470cf40fA2a59C21C86991d5D"
-  },
   "ethereum": {
-    "sourceAddress": "ws://127.0.0.1:8545",
-    "targetAddress": "ws://127.0.0.1:8545",
-    "privateKey": "2362196958cb01ee5b81143b664b06932eddfc14173f9efcafac74529159dbfe",
-    "chainID":1337
-  },
-  
-  "iota": {
-    "rest": "https://api.lb-0.h.chrysalis-devnet.iota.cafe",
-    "mqtt": "tcp://mqtt.lb-0.h.chrysalis-devnet.iota.cafe:1883",
-    "topic": "iop"
+    "privateKey": "2362196958cb01ee5b81143b664b06932eddfc14173f9efcafac74529159dbfe"
   },
   "reputation":6
 }

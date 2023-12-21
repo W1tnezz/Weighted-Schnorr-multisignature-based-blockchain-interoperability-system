@@ -14,12 +14,9 @@ import (
 	"sync"
 	"time"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/iotaledger/hive.go/serializer"
-	iota "github.com/iotaledger/iota.go/v2"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"go.dedis.ch/kyber/v3"
@@ -111,7 +108,7 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 			GetNodes: true,
 		}
 
-		log.Infof("Sending getEnrollNodesRequest to Aggregator %d", node.Index)
+		log.Infof("Node %d sending getEnrollNodesRequest to Aggregator", node.Index)
 		result, err := client.GetEnrollNodes(ctx, request)
 		if err != nil {
 			log.Errorf("Send EnrollRequest: %v", err)
@@ -122,7 +119,7 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 			json.Unmarshal(result.EnrollNodes, &enrollNodes)
 			break
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 
 	}
 
@@ -152,7 +149,7 @@ func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byt
 		log.Errorf("marshal R_Pi error : %v", err)
 	}
 	time.Sleep(5 * time.Second)
-
+	log.Infof("Start send kafka message R")
 	v.sendR(RPIbytes)
 
 	// 此时需要获取到其他人的R,此时需要等待其他人广播完成，获取完全足够的R
@@ -215,7 +212,6 @@ func (v *Validator) ListenAndProcess(o *OracleNode) error {
 			break
 		}
 		// 处理kafka消息
-		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
 		if v.enrolled {
 			go func() {
 				RPoint := v.suite.G1().Point()
@@ -223,24 +219,10 @@ func (v *Validator) ListenAndProcess(o *OracleNode) error {
 				if err != nil {
 					log.Errorf("R transform to Point: %v", err)
 				}
-				v.RAll[common.Address(m.Key)] = RPoint
 			}()
 		}
 	}
 	return nil
-}
-
-// 当发布的消息到达该订阅的时候，执行该函数
-func (v *Validator) publishHandler(msg mqtt.Message, o *OracleNode) {
-	iotaMsg := &iota.Message{}
-	if _, err := iotaMsg.Deserialize(msg.Payload(), serializer.DeSeriModeNoValidation); err != nil {
-		log.Errorf("Malformed mqtt message: %v", err)
-		return
-	}
-	var response *RDeal
-	if err := json.Unmarshal(iotaMsg.Payload.(*iota.Indexation).Data, &response); err != nil {
-		log.Errorf("Unmarshal response: %v", err)
-	}
 }
 
 func (v *Validator) sendR(R []byte) {
@@ -253,12 +235,13 @@ func (v *Validator) sendR(R []byte) {
 	var err error
 	const retries = 3
 	// 重试3次
+
 	for i := 0; i < retries; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		err = v.kafkaWriter.WriteMessages(ctx, messages...)
 		if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
-			time.Sleep(time.Millisecond * 250)
+			time.Sleep(time.Millisecond * 100)
 			continue
 		}
 		if err != nil {
@@ -269,13 +252,13 @@ func (v *Validator) sendR(R []byte) {
 }
 
 func (v *Validator) ValidateTransaction(ctx context.Context, hash common.Hash, size int64, minRank int64) (*ValidateResult, error) {
-
+	log.Info("请求 receipt")
 	receipt, err := v.ethClient.TransactionReceipt(ctx, hash)
 	found := !errors.Is(err, ethereum.NotFound)
 	if err != nil {
 		return nil, fmt.Errorf("transaction receipt: %w", err)
 	}
-
+	log.Info("请求 blocknumber")
 	blockNumber, err := v.ethClient.BlockNumber(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("blocknumber: %w", err)

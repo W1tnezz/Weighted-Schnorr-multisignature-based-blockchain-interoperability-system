@@ -114,7 +114,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 
 	// 初始化kafka Writer 和 Reader
 	writer := &kafka.Writer{
-		Addr:                   kafka.TCP(c.BindAddress),
+		Addr:                   kafka.TCP(c.Kafka.IpAddress),
 		Topic:                  c.Kafka.Topic,
 		RequiredAcks:           kafka.RequireAll,
 		Balancer:               &kafka.LeastBytes{},
