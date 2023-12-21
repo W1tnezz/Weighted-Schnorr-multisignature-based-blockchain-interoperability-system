@@ -126,6 +126,32 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 	return v.SignForSchnorr(message, enrollNodes)
 
 }
+func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, error) {
+	hash := sha256.New()
+	hash.Write(message)
+
+	messageHash := hash.Sum(nil)
+	_hash := v.suite.G1().Point().Base()
+	err := _hash.UnmarshalBinary(messageHash)
+	if err != nil {
+		fmt.Println("translate Message hash :", err)
+	}
+
+	s := make([]kyber.Scalar, 0)
+	for i := int64(0); i < v.reputation; i++ {
+		sI := v.suite.G1().Scalar().Add(rI[i], v.suite.G1().Scalar().Mul(v.suite.G1().Scalar().SetBytes(e), v.schnorrPrivateKey[i]))
+		s = append(s, sI)
+	}
+
+	signature := make([][]byte, 2)
+	for _, si := range s {
+		siBytes, _ := si.MarshalBinary()
+		for _, b := range siBytes {
+			signature[0] = append(signature[0], b)
+		}
+
+	}
+}
 
 func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byte, error) {
 	// 先产生自己的R，然后在等待一段时间，随后广播, 构造R序列

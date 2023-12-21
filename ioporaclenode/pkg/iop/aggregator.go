@@ -453,3 +453,120 @@ func (a *Aggregator) AggregateSignatureForSchnorr(txHash common.Hash, typ Valida
 	return true, MulSignature, MulR, _hash, MulY, nodes, pkSet, nil
 
 }
+
+func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRequest_Type, Signatures [][]kyber.Point, PK [][][2]*big.Int, nodes []common.Address, totalRank int64) (bool, kyber.Point, kyber.Point, kyber.Point, []common.Address, [][2]*big.Int, error) {
+	index := 64
+	S := make([]byte, (totalRank+1)*64)
+
+	pkSet := make([][2]*big.Int, 0)
+
+	zeroPointBytes := make([]byte, 64)
+	pointS := a.suite.G1().Point().Base()
+	pointS.UnmarshalBinary(zeroPointBytes)
+	for i := 0; i < len(a.enrollNodes); i++ {
+		for j := 0; j < len(PK[i]); j++ {
+			// 构造Point累加形式的S
+			PKbytes := append(PK[i][j][0].Bytes(), PK[i][j][1].Bytes()...)
+			PKpoint := a.suite.G1().Point().Base()
+			PKpoint.UnmarshalBinary(PKbytes)
+			pointS = a.suite.G1().Point().Add(pointS, PKpoint)
+
+			pkSet = append(pkSet, PK[i][j])
+
+			for k := 0; k < 2; k++ {
+				tmp := PK[i][j][k].Bytes()
+				for _, byteTmp := range tmp {
+					S[index] = byteTmp
+					index++
+				}
+			}
+		}
+
+	}
+
+	MulSignature := a.suite.G1().Point().Null()
+	// MulR := a.suite.G1().Point().Null()
+	MulY := a.suite.G1().Point().Null()
+
+
+	for i := 0; i < len(nodes); i++ {
+		for j := 0; j < len(PK[i]); j++ {
+
+			tmpX := PK[i][j][0]
+			tmpY := PK[i][j][1]
+			tmpXByte := tmpX.Bytes()
+			XByte := make([]byte, 32)
+
+			for k := 31; k >= 0; k-- {
+				if len(tmpXByte)-(len(XByte)-k) >= 0 {
+					XByte[k] = tmpXByte[len(tmpXByte)-(len(XByte)-k)]
+				} else {
+					XByte[k] = 0
+				}
+
+			}
+			for k := 0; k < 32; k++ {
+				S[k] = XByte[k]
+			}
+			tmpYByte := tmpY.Bytes()
+
+			YByte := make([]byte, 32)
+			for k := 31; k >= 0; k-- {
+				if len(tmpYByte)-(len(YByte)-k) >= 0 {
+					YByte[k] = tmpYByte[len(tmpYByte)-(len(YByte)-k)]
+				} else {
+					YByte[k] = 0
+				}
+
+			}
+			for k := 0; k < 32; k++ {
+				S[k+32] = YByte[k]
+			}
+			pkbytes := S[0:64]
+			pk := a.suite.G1().Point().Null()
+			err := pk.UnmarshalBinary(pkbytes)
+
+			if err != nil {
+				fmt.Println("translate pk ", err)
+			}
+
+			// 累加S
+			summaryS := a.suite.G1().Point().Add(pointS, pk)
+			summarySBytes, err := summaryS.MarshalBinary()
+			if err != nil {
+				log.Errorf("Marshal point err: %v", err)
+			}
+
+			hash1 := sha256.New()
+
+			// hash1.Write(S)
+			hash1.Write(summarySBytes)
+			aI := hash1.Sum(nil)
+
+			aScalar := a.suite.G1().Scalar().SetBytes(aI)
+			MulSignature.Add(MulSignature, a.suite.G1().Point().Mul(aScalar, Signatures[i][j]))
+			MulY.Add(MulY, a.suite.G1().Point().Mul(aScalar, pk))
+
+		}
+	}
+
+	message, _ := encodeValidateResult(txHash, true, typ)
+
+	hash := sha256.New()
+	hash.Write(message)
+
+	messageHash := hash.Sum(nil)
+	_hash := a.suite.G1().Point().Base()
+	err := _hash.UnmarshalBinary(messageHash)
+
+	if err != nil {
+		fmt.Println("translate Message hash :", err)
+	}
+
+	left := a.suite.Pair(MulY, _hash)
+	right := a.suite.Pair(a.suite.G1().Point().Base(), MulSignature)
+	fmt.Println("435", right.Equal(left))
+	a.enrollNodes = []int64{}
+
+	return true, MulSignature, _hash, MulY, nodes, pkSet, nil
+}
