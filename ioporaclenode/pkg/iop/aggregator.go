@@ -6,11 +6,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"fmt"
-	"go.dedis.ch/kyber/v3/util/random"
 	"math/big"
 	"math/rand"
 	"sync"
 	"time"
+
+	"go.dedis.ch/kyber/v3/util/random"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -166,7 +167,6 @@ func (a *Aggregator) isEnroll(index int64) bool {
 }
 
 // 获取报名节点
-
 func (a *Aggregator) getEnrollNodes(getNode bool) ([]int64, bool) {
 	if !getNode {
 		return nil, false
@@ -240,11 +240,16 @@ func (a *Aggregator) AggregateValidationResults(ctx context.Context, txHash comm
 	PK := make([][][2]*big.Int, 0)
 	nodes := make([]common.Address, 0)
 	totalRank := int64(0)
+	rand.Seed(time.Now().Unix())
 
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 	// 获取到了报名的节点数
 	timeout := time.After(Timeout)
+	tmpScalar := a.suite.G1().Scalar().Pick(random.New())
+	scalarSize := tmpScalar.MarshalSize()
+	PointSize := a.suite.G1().Point().Mul(tmpScalar, nil).MarshalSize()
+
 loop:
 	for {
 		select {
@@ -259,7 +264,6 @@ loop:
 		}
 	}
 
-	rand.Seed(time.Now().Unix())
 	for _, enrollNodeIndex := range a.enrollNodes {
 		enrollNode, err := a.registryContract.FindOracleNodeByIndex(nil, big.NewInt(enrollNodeIndex))
 
@@ -293,30 +297,8 @@ loop:
 			mutex.Lock()
 			if result.Valid {
 				totalRank += result.Reputation
-				sI := make([]kyber.Scalar, 0)
-				RI := make([]kyber.Point, 0)
+				sI, RI := a.HandleResultForSchnorr(result, scalarSize, PointSize)
 				nodes = append(nodes, enrollNode.Addr)
-				tmpScalar := a.suite.G1().Scalar().Pick(random.New())
-
-				tmpPoint := a.suite.G1().Point().Mul(tmpScalar, nil)
-
-				scalarSize := tmpScalar.MarshalSize()
-				PointSize := tmpPoint.MarshalSize()
-
-				for i := int64(0); i < result.Reputation; i++ {
-					sSlice := result.Signature[i*int64(scalarSize) : (i+1)*int64(scalarSize)]
-
-					sI = append(sI, a.suite.G1().Scalar().SetBytes(sSlice))
-
-					RSliceBytes := result.R[i*int64(PointSize) : (i+1)*int64(PointSize)]
-					RSlice := a.suite.G1().Point().Base()
-					err := RSlice.UnmarshalBinary(RSliceBytes)
-					if err != nil {
-						fmt.Println("UnmarshalBinary R ,", err)
-					}
-					RI = append(RI, RSlice)
-				}
-
 				Signatures = append(Signatures, sI) //获取到所有的签名
 				Rs = append(Rs, RI)
 
@@ -326,12 +308,36 @@ loop:
 
 		}()
 	}
-
 	wg.Wait()
 
+	return a.AggregateSignatureForSchnorr(txHash, typ, Signatures, Rs, PK, nodes, totalRank)
+
+}
+
+func (a *Aggregator) HandleResultForSchnorr(result *ValidateResponse, scalarSize int, PointSize int) ([]kyber.Scalar, []kyber.Point) {
+	sI := make([]kyber.Scalar, 0)
+	RI := make([]kyber.Point, 0)
+
+	for i := int64(0); i < result.Reputation; i++ {
+		sSlice := result.Signature[i*int64(scalarSize) : (i+1)*int64(scalarSize)]
+
+		sI = append(sI, a.suite.G1().Scalar().SetBytes(sSlice))
+
+		RSliceBytes := result.R[i*int64(PointSize) : (i+1)*int64(PointSize)]
+		RSlice := a.suite.G1().Point().Base()
+		err := RSlice.UnmarshalBinary(RSliceBytes)
+		if err != nil {
+			fmt.Println("UnmarshalBinary R ,", err)
+		}
+		RI = append(RI, RSlice)
+	}
+	return sI, RI
+}
+
+func (a *Aggregator) AggregateSignatureForSchnorr(txHash common.Hash, typ ValidateRequest_Type, Signatures [][]kyber.Scalar, Rs [][]kyber.Point, PK [][][2]*big.Int, nodes []common.Address, totalRank int64) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, kyber.Point, []common.Address, [][2]*big.Int, error) {
 	index := 64
 	S := make([]byte, (totalRank+1)*64)
-	
+
 	pkSet := make([][2]*big.Int, 0)
 
 	zeroPointBytes := make([]byte, 64)
@@ -368,7 +374,7 @@ loop:
 		for j := 0; j < len(PK[i]); j++ {
 
 			tmpX := PK[i][j][0]
-			tmpY := PK[i][j][1]		
+			tmpY := PK[i][j][1]
 			tmpXByte := tmpX.Bytes()
 			XByte := make([]byte, 32)
 
@@ -418,7 +424,7 @@ loop:
 			// hash1.Write(S)
 			hash1.Write(summarySBytes)
 			aI := hash1.Sum(nil)
-			
+
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
 			MulSignature.Add(MulSignature, a.suite.G1().Scalar().Mul(aScalar, Signatures[i][j]))
 			MulY.Add(MulY, a.suite.G1().Point().Mul(aScalar, pk))
@@ -446,7 +452,3 @@ loop:
 	return true, MulSignature, MulR, _hash, MulY, nodes, pkSet, nil
 
 }
-
-//func (a *Aggregator) SetThreshold(threshold int) {
-//	a.t = threshold
-//}

@@ -115,6 +115,11 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 
 	}
 
+	return v.SignForSchnorr(message, enrollNodes)
+
+}
+
+func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byte, error) {
 	// 先产生自己的R，然后在等待一段时间，随后广播, 构造R序列
 	RI := make([]kyber.Point, 0)
 	rI := make([]kyber.Scalar, 0)
@@ -188,7 +193,6 @@ loop:
 		}
 
 	}
-
 	return signature, nil
 }
 
