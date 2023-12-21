@@ -175,16 +175,19 @@ contract OracleContract{
 
     function submitTransactionValidationResult(bool _result, bytes32 message, uint256 signature, uint256 rx , uint256 ry, uint256 _hash, address[] memory validators) external {
         // require(isValidateTime, "Not validate time!");
-        // submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, validators);
+        submitValidationResult(ValidationType.TRANSACTION, _result, message, signature, rx, ry, _hash, validators);
         
         // isValidateTime = false;
     }
 
     // 点加进行Hash恢复公钥，gas: 378116
     function submitValidationResult(
+        ValidationType _typ,
+        bool _result,
+        bytes32 message,
         uint256 signature, uint256 rx , uint256 ry, uint256 _hash, 
         address[] memory validators
-    ) external {
+    ) private {
         // require(_typ != ValidationType.UNKNOWN, "unknown validation type");
         // require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
     
