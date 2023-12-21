@@ -1,6 +1,5 @@
 /.idea/
 /node_modules/
 /ioporaclecontracts/node_modules/
-buil
+/ioporaclecontracts/build/
 /go-test/
-.env
