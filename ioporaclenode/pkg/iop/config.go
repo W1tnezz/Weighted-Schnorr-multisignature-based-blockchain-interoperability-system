@@ -5,7 +5,7 @@ type Config struct {
 	PrivateKey  string
 	Contracts   ContractsConfig
 	Ethereum    EthereumConfig
-	IOTA        IOTAConfig
+	Kafka       KafkaConfig
 	Reputation  int64
 }
 
@@ -22,8 +22,8 @@ type EthereumConfig struct {
 	ChainID       int64
 }
 
-type IOTAConfig struct {
-	Rest  string
-	Mqtt  string
-	Topic string
+type KafkaConfig struct {
+	IPAddress     string
+	Port          string
+	Topic         string
 }

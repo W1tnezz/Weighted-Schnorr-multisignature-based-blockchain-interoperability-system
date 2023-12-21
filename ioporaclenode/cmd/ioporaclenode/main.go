@@ -11,8 +11,14 @@ import (
 )
 
 func main() {
+	commonConfig := "./configs/common.json"
 	configFile := flag.String("c", "./configs/config.json", "filename of the config file")
 	flag.Parse()
+
+	viper.SetConfigFile(*&commonConfig)
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Read config: %v", err)
+	}
 
 	viper.SetConfigFile(*configFile)
 	if err := viper.ReadInConfig(); err != nil {
@@ -24,6 +30,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unmarshal config into struct, %v", err)
 	}
+
+	log.Infof("Config: %s", config.Ethereum.SourceAddress)
 
 	log.Infof("Loaded config file %s", *configFile)
 

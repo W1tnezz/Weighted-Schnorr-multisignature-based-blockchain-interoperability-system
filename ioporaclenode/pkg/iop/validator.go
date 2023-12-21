@@ -3,7 +3,6 @@ package iop
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 
 	"crypto/ecdsa"
@@ -48,9 +47,7 @@ type Validator struct {
 	connectionManager *ConnectionManager
 	RAll              map[uint64]kyber.Point
 	account           common.Address
-	mqttClient        mqtt.Client
-	mqttTopic         []byte
-	iotaClient        *iota.NodeHTTPAPIClient
+
 	schnorrPrivateKey []kyber.Scalar
 	reputation        int64
 }
@@ -64,9 +61,7 @@ func NewValidator(
 	connectionManager *ConnectionManager,
 	RAll map[uint64]kyber.Point,
 	account common.Address,
-	mqttClient mqtt.Client,
-	mqttTopic []byte,
-	iotaClient *iota.NodeHTTPAPIClient,
+
 	schnorrPrivateKey []kyber.Scalar,
 	reputation int64,
 
@@ -80,9 +75,7 @@ func NewValidator(
 		connectionManager: connectionManager,
 		RAll:              RAll,
 		account:           account,
-		mqttClient:        mqttClient,
-		mqttTopic:         mqttTopic,
-		iotaClient:        iotaClient,
+
 		schnorrPrivateKey: schnorrPrivateKey,
 		reputation:        reputation,
 	}
@@ -211,16 +204,16 @@ func (v *Validator) ListenAndProcess(o *OracleNode) error {
 }
 
 func (v *Validator) ListenAndProcessResponse(o *OracleNode) error {
-	if token := v.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		return fmt.Errorf("connect to broker: %w", token.Error())
-	}
+	// if token := v.mqttClient.Connect(); token.Wait() && token.Error() != nil {
+	// 	return fmt.Errorf("connect to broker: %w", token.Error())
+	// }
 
-	topic := fmt.Sprintf("messages/indexation/%s", hex.EncodeToString(v.mqttTopic))
-	if token := v.mqttClient.Subscribe(topic, 1, func(c mqtt.Client, m mqtt.Message) {
-		v.publishHandler(m, o)
-	}); token.Wait() && token.Error() != nil {
-		return fmt.Errorf("subscribe to topic: %w", token.Error())
-	}
+	// topic := fmt.Sprintf("messages/indexation/%s", hex.EncodeToString(v.mqttTopic))
+	// if token := v.mqttClient.Subscribe(topic, 1, func(c mqtt.Client, m mqtt.Message) {
+	// 	v.publishHandler(m, o)
+	// }); token.Wait() && token.Error() != nil {
+	// 	return fmt.Errorf("subscribe to topic: %w", token.Error())
+	// }
 
 	return nil
 }
@@ -262,24 +255,24 @@ func (v *Validator) HandleR(R *RDeal) error {
 }
 
 func (v *Validator) BroadcastResponse(R *RDeal) error {
-	log.Infof("205 Broadcasting response for R from %d", new(big.Int).SetBytes(R.Index).Uint64())
+	// log.Infof("Broadcasting response for R from %d", new(big.Int).SetBytes(R.Index).Uint64())
 
-	b, err := json.Marshal(R)
-	payload := &iota.Indexation{
-		Index: v.mqttTopic,
-		Data:  b,
-	}
+	// b, err := json.Marshal(R)
+	// payload := &iota.Indexation{
+	// 	Index: v.mqttTopic,
+	// 	Data:  b,
+	// }
 
-	msg, err := iota.NewMessageBuilder().
-		Payload(payload).
-		Build()
-	if err != nil {
-		return fmt.Errorf("build iota message: %w", err)
-	}
-	if _, err := v.iotaClient.SubmitMessage(context.Background(), msg); err != nil {
-		return fmt.Errorf("submit message: %w", err)
-	}
-	log.Infof("Broadcast for deal %d completed", new(big.Int).SetBytes(R.Index).Uint64())
+	// msg, err := iota.NewMessageBuilder().
+	// 	Payload(payload).
+	// 	Build()
+	// if err != nil {
+	// 	return fmt.Errorf("build iota message: %w", err)
+	// }
+	// if _, err := v.iotaClient.SubmitMessage(context.Background(), msg); err != nil {
+	// 	return fmt.Errorf("submit message: %w", err)
+	// }
+	// log.Infof("Broadcast for deal %d completed", new(big.Int).SetBytes(R.Index).Uint64())
 
 	return nil
 }
