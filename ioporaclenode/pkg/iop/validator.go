@@ -219,6 +219,7 @@ func (v *Validator) ListenAndProcess(o *OracleNode) error {
 				if err != nil {
 					log.Errorf("R transform to Point: %v", err)
 				}
+				v.RAll[common.Address(m.Key)] = RPoint
 			}()
 		}
 	}
