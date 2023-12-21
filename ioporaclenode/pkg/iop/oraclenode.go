@@ -28,7 +28,6 @@ type OracleNode struct {
 	serverLis         net.Listener
 	targetEthClient   *ethclient.Client
 	sourceEthClient   *ethclient.Client
-	registryContract  *RegistryContractWrapper
 	oracleContract    *OracleContractWrapper
 	suite             suites.Suite
 	ecdsaPrivateKey   *ecdsa.PrivateKey
@@ -64,14 +63,11 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 
 
 	// 注册
-	registryContract, err := NewRegistryContract(common.HexToAddress(c.Contracts.RegistryContractAddress), targetEthClient)
+	
 	if err != nil {
 		return nil, fmt.Errorf("registry contract: %v", err)
 	}
 
-	registryContractWrapper := &RegistryContractWrapper{
-		RegistryContract: registryContract,
-	}
 
 	oracleContract, err := NewOracleContract(common.HexToAddress(c.Contracts.OracleContractAddress), targetEthClient)
 	oracleContractWrapper := &OracleContractWrapper{
@@ -108,7 +104,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	}
 	account := common.HexToAddress(hexAddress)
 
-	connectionManager := NewConnectionManager(registryContractWrapper, account)
+	connectionManager := NewConnectionManager(oracleContractWrapper, account)
 	RAll := make(map[common.Address]kyber.Point)
 	enrollNodes := []int64{}
 
@@ -132,7 +128,6 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 
 	validator := NewValidator(
 		suite,
-		registryContractWrapper,
 		oracleContractWrapper,
 		ecdsaPrivateKey,
 		sourceEthClient,
@@ -149,7 +144,6 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		targetEthClient,
 		connectionManager,
 		oracleContractWrapper,
-		registryContractWrapper,
 		account,
 		ecdsaPrivateKey,
 		chainId,
@@ -160,7 +154,6 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		serverLis:         serverLis,
 		targetEthClient:   targetEthClient,
 		sourceEthClient:   sourceEthClient,
-		registryContract:  registryContractWrapper,
 		oracleContract:    oracleContractWrapper,
 		suite:             suite,
 		ecdsaPrivateKey:   ecdsaPrivateKey,
@@ -211,7 +204,7 @@ func (n *OracleNode) Run() error {
 }
 
 func (n *OracleNode) register(ipAddr string) error {
-	isRegistered, err := n.registryContract.OracleNodeIsRegistered(nil, n.account)
+	isRegistered, err := n.oracleContract.OracleNodeIsRegistered(nil, n.account)
 	if err != nil {
 		return fmt.Errorf("is registered: %w", err)
 	}
@@ -230,7 +223,7 @@ func (n *OracleNode) register(ipAddr string) error {
 		b = append(b, publicKeyToBig)
 	}
 
-	minStake, err := n.registryContract.MINSTAKE(nil)
+	minStake, err := n.oracleContract.MINSTAKE(nil)
 	if err != nil {
 		return fmt.Errorf("min stake: %v", err)
 	}
@@ -243,7 +236,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
-		_, err = n.registryContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
+		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
 		}

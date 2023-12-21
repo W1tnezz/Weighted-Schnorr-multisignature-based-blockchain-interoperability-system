@@ -38,7 +38,6 @@ type ValidateResult struct {
 type Validator struct {
 	sync.RWMutex
 	suite             pairing.Suite
-	registryContract  *RegistryContractWrapper
 	oracleContract    *OracleContractWrapper
 	ecdsaPrivateKey   *ecdsa.PrivateKey
 	ethClient         *ethclient.Client
@@ -54,7 +53,6 @@ type Validator struct {
 
 func NewValidator(
 	suite pairing.Suite,
-	registryContract *RegistryContractWrapper,
 	oracleContract *OracleContractWrapper,
 	ecdsaPrivateKey *ecdsa.PrivateKey,
 	ethClient *ethclient.Client,
@@ -69,7 +67,6 @@ func NewValidator(
 ) *Validator {
 	return &Validator{
 		suite:             suite,
-		registryContract:  registryContract,
 		ecdsaPrivateKey:   ecdsaPrivateKey,
 		oracleContract:    oracleContract,
 		ethClient:         ethClient,
@@ -92,9 +89,9 @@ func (v *Validator) End() {
 func (v *Validator) Sign(message []byte) ([][]byte, error) {
 	defer v.End()
 	//此时要获取所有的报名节点，要考虑是否达到阈值，循环质询
-	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
+	node, _ := v.oracleContract.FindOracleNodeByAddress(nil, v.account)
 
-	aggregator, _ := v.registryContract.GetAggregator(nil)
+	aggregator, _ := v.oracleContract.GetAggregator(nil)
 
 	var enrollNodes []int64
 	for true {
