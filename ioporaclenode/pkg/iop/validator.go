@@ -82,7 +82,7 @@ func NewValidator(
 }
 
 func (v *Validator) Sign(message []byte) ([][]byte, error) {
-
+	
 	//此时要获取所有的报名节点，要考虑是否达到阈值，循环质询
 	node, _ := v.registryContract.FindOracleNodeByAddress(nil, v.account)
 
