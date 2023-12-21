@@ -346,6 +346,7 @@ func (a *Aggregator) HandleResultForBls(result *ValidateResponse, PointSize int)
 		}
 		sI = append(sI, sSlice)
 	}
+	return sI
 }
 
 func (a *Aggregator) AggregateSignatureForSchnorr(txHash common.Hash, typ ValidateRequest_Type, Signatures [][]kyber.Scalar, Rs [][]kyber.Point, PK [][][2]*big.Int, nodes []common.Address, totalRank int64) (bool, kyber.Scalar, kyber.Point, kyber.Scalar, kyber.Point, []common.Address, [][2]*big.Int, error) {
