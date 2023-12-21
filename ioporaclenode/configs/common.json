@@ -1,0 +1,16 @@
+{
+    "contracts": {
+      "registryContractAddress": "0x27728eC32C8e43fd07160FDc981731F98EF1a84F",
+      "oracleContractAddress": "0x923C26Be69A53A0470cf40fA2a59C21C86991d5D"
+    },
+    "ethereum": {
+      "sourceAddress": "ws://127.0.0.1:8545",
+      "targetAddress": "ws://127.0.0.1:8545",
+      "chainID":1337
+    },
+    "kafka": {
+        "ipAddress": "127.0.0.1",
+        "port": "9092",
+        "topic": "oracle"
+    }
+  }

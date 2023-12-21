@@ -10,12 +10,10 @@ import (
 
 	"ioporaclenode/internal/pkg/kyber/pairing/bn256"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	iota "github.com/iotaledger/iota.go/v2"
 	log "github.com/sirupsen/logrus"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/suites"
@@ -61,18 +59,6 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	// 区块链的ID
 	chainId := big.NewInt(c.Ethereum.ChainID)
 
-	// 创建新的iota客户端
-	iotaAPI := iota.NewNodeHTTPAPIClient(c.IOTA.Rest)
-	if err != nil {
-		return nil, fmt.Errorf("iota client: %v", err)
-	}
-
-	// 配置mqtt,创建公共服务器
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker(c.IOTA.Mqtt)
-	opts.SetClientID(c.BindAddress)
-	mqttClient := mqtt.NewClient(opts)
-	mqttTopic := []byte(c.IOTA.Topic)
 
 	// 注册
 	registryContract, err := NewRegistryContract(common.HexToAddress(c.Contracts.RegistryContractAddress), targetEthClient)
@@ -131,9 +117,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		connectionManager,
 		RAll,
 		account,
-		mqttClient,
-		mqttTopic,
-		iotaAPI,
+
 		schnorrPrivateKey,
 		reputation,
 	)
