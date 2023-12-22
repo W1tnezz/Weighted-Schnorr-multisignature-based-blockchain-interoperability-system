@@ -146,7 +146,8 @@ contract OracleContract{
     }
 
     function getNodeBLSPublicKeysSub() public view returns (uint256[4] memory){
-        uint256[4] memory pubkeySub = oracleNodes[oracleNodeIndices[0]].blsPubKeys[0];
+        uint256[4] memory pubkeySub;
+        (pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]) = (oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][0], oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][1], oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][2], oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][3]);
         for(uint8 i = 0; i < oracleNodeIndices.length; i++){
             uint256[4][] memory temp = oracleNodes[oracleNodeIndices[i]].blsPubKeys;
             for(uint256 j = 0; j < temp.length; j++){
