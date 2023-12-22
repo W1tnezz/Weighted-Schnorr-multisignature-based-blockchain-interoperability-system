@@ -3,7 +3,6 @@ package iop
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"net"
@@ -256,19 +255,8 @@ func (n *OracleNode) register(ipAddr string) error {
 
 		// fmt.Println("pointS", pointS)
 
-		hash1 := sha256.New()
-
-		// hash1.Write(S)
-		summarySBytes := make([]byte, 0)
-		hash1.Write(summarySBytes)
-		aI := hash1.Sum(nil)
-
-		aScalarG1 := n.suite.G1().Scalar().SetBytes(aI)
-		aScalarG2 := n.suite.G2().Scalar().SetBytes(aI)
 		// re1 , _ := ScalarToBig(aScalarG1)
 		// re2 , _ := ScalarToBig(aScalarG2)
-
-		fmt.Println("269", aScalarG1.Equal(aScalarG2))
 
 		n.oracleContract.IsOnCurve(nil, publicKeyToBig)
 
@@ -291,6 +279,10 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
+		for _, bbBlsBig := range bBls {
+			n.oracleContract.IsOnCurve(nil, bbBlsBig)
+			fmt.Println("284")
+		}
 		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, bBls, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
