@@ -120,8 +120,8 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 
 	}
 
-	return v.SignForSchnorr(message, enrollNodes)
-	// return v.SignForBls(message, enrollNodes)
+	// return v.SignForSchnorr(message, enrollNodes)
+	return v.SignForBls(message, enrollNodes)
 
 }
 func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, error) {
@@ -129,12 +129,9 @@ func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, e
 	hash.Write(message)
 
 	messageHash := hash.Sum(nil)
-	_hash := v.suite.G1().Point().Base()
-	err := _hash.UnmarshalBinary(messageHash)
-	if err != nil {
-		fmt.Println("translate Message hash :", err)
-	}
-
+	
+	_hash := v.suite.G1().Point().Mul(v.suite.G1().Scalar().SetBytes(messageHash), nil)
+	
 	signature := make([][]byte, 2)
 
 	for i := int64(0); i < v.reputation; i++ {
