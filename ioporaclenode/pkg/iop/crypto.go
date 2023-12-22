@@ -33,7 +33,7 @@ func HexToScalar(suite kyber.Group, hexScalar string) (kyber.Scalar, error) {
 	return s, nil
 }
 
-func PointToBig(point kyber.Point) ([2]*big.Int, error) {
+func G1PointToBig(point kyber.Point) ([2]*big.Int, error) {
 	bytes, err := point.MarshalBinary()
 	if err != nil {
 		return [2]*big.Int{}, fmt.Errorf("marshal public key: %w", err)
@@ -46,6 +46,25 @@ func PointToBig(point kyber.Point) ([2]*big.Int, error) {
 	return [2]*big.Int{
 		new(big.Int).SetBytes(bytes[:32]),
 		new(big.Int).SetBytes(bytes[32:64]),
+	}, nil
+}
+
+// 
+func G2PointToBig(point kyber.Point) ([4]*big.Int, error) {
+	b, err := point.MarshalBinary()
+	if err != nil {
+		return [4]*big.Int{}, fmt.Errorf("marshal public key: %w", err)
+	}
+
+	if len(b) != 128 {
+		return [4]*big.Int{}, fmt.Errorf("invalid public key length")
+	}
+
+	return [4]*big.Int{
+		new(big.Int).SetBytes(b[:32]),
+		new(big.Int).SetBytes(b[32:64]),
+		new(big.Int).SetBytes(b[64:96]),
+		new(big.Int).SetBytes(b[96:128]),
 	}, nil
 }
 

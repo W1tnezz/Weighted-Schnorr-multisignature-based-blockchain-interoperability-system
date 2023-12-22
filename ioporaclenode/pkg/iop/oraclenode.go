@@ -18,7 +18,7 @@ import (
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/suites"
+	"go.dedis.ch/kyber/v3/pairing"
 	"google.golang.org/grpc"
 )
 
@@ -29,17 +29,17 @@ type OracleNode struct {
 	targetEthClient   *ethclient.Client
 	sourceEthClient   *ethclient.Client
 	oracleContract    *OracleContractWrapper
-	suite             suites.Suite
+	suite             pairing.Suite
 	ecdsaPrivateKey   *ecdsa.PrivateKey
-	schnorrPrivateKey []kyber.Scalar
+	PrivateKey        []kyber.Scalar
 	account           common.Address
 	connectionManager *ConnectionManager
 
-	validator         *Validator
-	aggregator        *Aggregator
-	isAggregator      bool
-	chainId           *big.Int
-	reputation        int64
+	validator    *Validator
+	aggregator   *Aggregator
+	isAggregator bool
+	chainId      *big.Int
+	reputation   int64
 }
 
 func NewOracleNode(c Config) (*OracleNode, error) {
@@ -61,13 +61,11 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	// 区块链的ID
 	chainId := big.NewInt(c.Ethereum.ChainID)
 
-
 	// 注册
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("registry contract: %v", err)
 	}
-
 
 	oracleContract, err := NewOracleContract(common.HexToAddress(c.Contracts.OracleContractAddress), targetEthClient)
 	oracleContractWrapper := &OracleContractWrapper{
@@ -87,12 +85,16 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	if err != nil {
 		return nil, fmt.Errorf("hex to ecdsa: %v", err)
 	}
-	schnorrPrivateKey := make([]kyber.Scalar, 0)
+	// schnorrPrivateKey := make([]kyber.Scalar, 0)
+	blsPrivateKey := make([]kyber.Scalar, 0)
 
 	reputation := int64(c.Reputation)
 
+	// for i := int64(0); i < reputation; i++ {
+	// 	schnorrPrivateKey = append(schnorrPrivateKey, suite.G2().Scalar().Pick(random.New()))
+	// }
 	for i := int64(0); i < reputation; i++ {
-		schnorrPrivateKey = append(schnorrPrivateKey, suite.G1().Scalar().Pick(random.New()))
+		blsPrivateKey = append(blsPrivateKey, suite.G2().Scalar().Pick(random.New()))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("hex to scalar: %v", err)
@@ -114,8 +116,8 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		Topic:                  c.Kafka.Topic,
 		RequiredAcks:           kafka.RequireAll,
 		Balancer:               &kafka.LeastBytes{},
-		AllowAutoTopicCreation: true,     
-		Async:                  true,  
+		AllowAutoTopicCreation: true,
+		Async:                  true,
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
@@ -124,7 +126,6 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		Partition: int(c.Kafka.Partition),
 		MaxBytes:  10e6, // 10MB
 	})
-	
 
 	validator := NewValidator(
 		suite,
@@ -136,7 +137,8 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		account,
 		writer,
 		reader,
-		schnorrPrivateKey,
+		// schnorrPrivateKey,   // schnorr
+		blsPrivateKey, // bls
 		reputation,
 	)
 	aggregator := NewAggregator(
@@ -157,7 +159,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		oracleContract:    oracleContractWrapper,
 		suite:             suite,
 		ecdsaPrivateKey:   ecdsaPrivateKey,
-		schnorrPrivateKey: schnorrPrivateKey,
+		PrivateKey:        blsPrivateKey,
 		account:           account,
 		connectionManager: connectionManager,
 		validator:         validator,
@@ -209,13 +211,23 @@ func (n *OracleNode) register(ipAddr string) error {
 		return fmt.Errorf("is registered: %w", err)
 	}
 
-	schnorrPublicKey := make([]kyber.Point, 0)
-	for _, schnorrPrivateKey := range n.schnorrPrivateKey {
-		schnorrPublicKey = append(schnorrPublicKey, n.suite.Point().Mul(schnorrPrivateKey, nil))
+	// schnorrPublicKey := make([]kyber.Point, 0)
+	// for _, schnorrPrivateKey := range n.schnorrPrivateKey {
+	// 	schnorrPublicKey = append(schnorrPublicKey, n.suite.Point().Mul(schnorrPrivateKey, nil))
+	// }
+
+	blsPublicKey := make([]kyber.Point, 0)
+	for _, privateKey := range n.PrivateKey {
+
+		blsPublicKey = append(blsPublicKey, n.suite.G2().Point().Mul(privateKey, nil))
 	}
-	b := make([][2]*big.Int, 0)
-	for _, publicKey := range schnorrPublicKey {
-		publicKeyToBig, err := PointToBig(publicKey)
+
+	// b := make([][2]*big.Int, 0)   // schnorr
+	b := make([][4]*big.Int, 0) // bls
+
+	for _, publicKey := range blsPublicKey {
+
+		publicKeyToBig, err := G2PointToBig(publicKey)
 
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
@@ -236,7 +248,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
-		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, b, big.NewInt(n.reputation))
+		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, make([][2]*big.Int, 0), big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
 		}
