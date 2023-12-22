@@ -81,6 +81,7 @@ contract OracleContract{
         iopNode.ipAddr = _ipAddr;
         iopNode.pubKeys = _pubKey;
         iopNode.blsPubKeys = _blsPubKey;
+        require(BN256G2._isOnCurve(_blsPubKey[0][0], _blsPubKey[0][1], _blsPubKey[0][2], _blsPubKey[0][3]), "not on curve!");
         iopNode.stake = msg.value;
         iopNode.rank = rank;
         iopNode.index = oracleNodeIndices.length;
