@@ -265,8 +265,12 @@ func (n *OracleNode) register(ipAddr string) error {
 
 		aScalarG1 := n.suite.G1().Scalar().SetBytes(aI)
 		aScalarG2 := n.suite.G2().Scalar().SetBytes(aI)
+		// re1 , _ := ScalarToBig(aScalarG1)
+		// re2 , _ := ScalarToBig(aScalarG2)
 
-		fmt.Println("269", aScalarG1 == aScalarG2)
+		fmt.Println("269", aScalarG1.Equal(aScalarG2))
+
+		n.oracleContract.IsOnCurve(nil, publicKeyToBig)
 
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
