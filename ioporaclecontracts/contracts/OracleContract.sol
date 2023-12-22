@@ -149,12 +149,13 @@ contract OracleContract{
         uint256[4] memory pubkeySub = oracleNodes[oracleNodeIndices[0]].blsPubKeys[0];
         for(uint8 i = 0; i < oracleNodeIndices.length; i++){
             uint256[4][] memory temp = oracleNodes[oracleNodeIndices[i]].blsPubKeys;
-            for(uint256 memory j = 0; j < temp.length; j++){
+            for(uint256 j = 0; j < temp.length; j++){
                 if(i == 0 && j == 0){
                     continue;
                 }
                 (pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]) = BN256G2.ecTwistAdd(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3], temp[j][0], temp[j][1], temp[j][2], temp[j][3]);
-                require(BN256G2._isOnCurve(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]), string(bytes(j + 48)));
+                
+                require(BN256G2._isOnCurve(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]), string(abi.encode(j + 48)));
             }
         }
         return pubkeySub;
