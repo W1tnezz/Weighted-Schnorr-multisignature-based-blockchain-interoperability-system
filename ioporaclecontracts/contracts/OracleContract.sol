@@ -146,10 +146,13 @@ contract OracleContract{
     }
 
     function getNodeBLSPublicKeysSub() public view returns (uint256[4] memory){
-        uint256[4] memory pubkeySub = [uint256(0), 1, 0, 0];
+        uint256[4] memory pubkeySub = oracleNodes[oracleNodeIndices[0]].blsPubKeys[0];
         for(uint8 i = 0; i < oracleNodeIndices.length; i++){
             uint256[4][] memory temp = oracleNodes[oracleNodeIndices[i]].blsPubKeys;
             for(uint8 j = 0; j < temp.length; j++){
+                if(i == 0 && j == 0){
+                    continue;
+                }
                 (pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]) = BN256G2.ecTwistAdd(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3], temp[j][0], temp[j][1], temp[j][2], temp[j][3]);
             }
         }
@@ -341,7 +344,7 @@ function submitValidationResultBLS(
             }
         }
 
-        uint256[4] memory publicKey = [uint256(0), 1, 0, 0];
+        uint256[4] memory publicKey;
         for(uint8 i = 0; i < validators.length; i++){
             for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
                 uint256[4] memory temp = oracleNodes[validators[i]].blsPubKeys[j];
@@ -350,7 +353,12 @@ function submitValidationResultBLS(
                 
                 uint256 res = uint256(sha256(abi.encode(pk[0], pk[1], pk[2], pk[3])));
                 (temp[0], temp[1], temp[2], temp[3]) = BN256G2.ecTwistMul(res, temp[0], temp[1], temp[2], temp[3]);
-                (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = BN256G2.ecTwistAdd(publicKey[0], publicKey[1], publicKey[2], publicKey[3], temp[0], temp[1], temp[2], temp[3]);
+                if(i == 0 && j == 0){
+                    (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = (temp[0], temp[1], temp[2], temp[3]);
+                }else{
+                    (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = BN256G2.ecTwistAdd(publicKey[0], publicKey[1], publicKey[2], publicKey[3], temp[0], temp[1], temp[2], temp[3]);
+            
+                }
             }
         }
         uint256[12] memory input =
