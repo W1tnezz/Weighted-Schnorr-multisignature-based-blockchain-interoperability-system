@@ -486,25 +486,32 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 		fmt.Println("GetNodeBLSPublicKeysSub : ", err, PointBig)
 	}
 
-	var buffer bytes.Buffer
+	PointByte := make([]byte, 0)
+
 	for z := 0; z < 4; z++ {
-		buffer.Write(PointBig[z].Bytes())
+		bigByte := PointBig[z].Bytes()
+		for _, b := range bigByte {
+			PointByte = append(PointByte, b)
+		}
+
 	}
-	fmt.Println("493", len(buffer.Bytes()))
-	pointS := a.suite.G2().Point().Base()
-	pointS.UnmarshalBinary(buffer.Bytes())
+	fmt.Println("493", len(PointByte))
+	pointS := a.suite.G2().Point().Null()
+	pointS.UnmarshalBinary(PointByte)
 
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 			// 构造Point累加形式的S
-			var buffer bytes.Buffer
+			PKbytes := make([]byte, 0)
+
 			for z := 0; z < 4; z++ {
-				buffer.Write(PK[i][j][z].Bytes())
+				bigByte := PK[i][j][z].Bytes()
+				for _, b := range bigByte {
+					PKbytes = append(PKbytes, b)
+				}
+
 			}
-
-			PKbytes := buffer.Bytes()
-
-			PKpoint := a.suite.G2().Point().Base()
+			PKpoint := a.suite.G2().Point().Null()
 			PKpoint.UnmarshalBinary(PKbytes)
 			pointS = a.suite.G2().Point().Add(pointS, PKpoint)
 
@@ -565,15 +572,19 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 			// pkbytes := S[0:64]
 
 			// bls
-			var buffer bytes.Buffer
+
+			PKbytes := make([]byte, 0)
+
 			for z := 0; z < 4; z++ {
-				buffer.Write(PK[i][j][z].Bytes())
+				bigByte := PK[i][j][z].Bytes()
+				for _, b := range bigByte {
+					PKbytes = append(PKbytes, b)
+				}
+
 			}
-
-			pkbytes := buffer.Bytes()
-			pk := a.suite.G1().Point().Null()
-			err := pk.UnmarshalBinary(pkbytes)
-
+			pk := a.suite.G2().Point().Null()
+			err := pk.UnmarshalBinary(PKbytes)
+			
 			if err != nil {
 				fmt.Println("translate pk ", err)
 			}
