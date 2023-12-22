@@ -334,8 +334,25 @@ function submitValidationResultBLS(
     ) private {
 
         uint256[2] memory hash = BN256G1.hashToPointSha256(abi.encode(_hash, _result, _typ));
-        uint256[4] memory publicKey = getNodeBLSPublicKeysSub();
+        uint256[4] memory S = getNodeBLSPublicKeysSub();
+        for(uint8 i = 0; i < validators.length; i++){
+            for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
+                (S[0], S[1], S[2], S[3]) = BN256G2.ecTwistAdd(S[0], S[1], S[2], S[3], oracleNodes[validators[i]].blsPubKeys[j][0], oracleNodes[validators[i]].blsPubKeys[j][1], oracleNodes[validators[i]].blsPubKeys[j][2], oracleNodes[validators[i]].blsPubKeys[j][3]);
+            }
+        }
 
+        uint256[4] memory publicKey;
+        for(uint8 i = 0; i < validators.length; i++){
+            for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
+                uint256[4] memory temp = oracleNodes[validators[i]].blsPubKeys[j];
+                uint256[4] memory pk;
+                (pk[0], pk[1], pk[2], pk[3]) = BN256G2.ecTwistAdd(temp[0], temp[1], temp[2], temp[3], S[0], S[1], S[2], S[3]);
+                
+                uint256 res = uint256(sha256(abi.encode(pk[0], pk[1], pk[2], pk[3])));
+                (temp[0], temp[1], temp[2], temp[3]) = BN256G2.ecTwistMul(res, temp[0], temp[1], temp[2], temp[3]);
+                (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = BN256G2.ecTwistAdd(publicKey[0], publicKey[1], publicKey[2], publicKey[3], temp[0], temp[1], temp[2], temp[3]);
+            }
+        }
         uint256[12] memory input =
             [
                 hash[0],
