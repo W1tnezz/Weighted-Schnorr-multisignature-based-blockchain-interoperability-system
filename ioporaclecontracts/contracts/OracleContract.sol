@@ -10,6 +10,7 @@ contract OracleContract{
         address addr;  // 链上地址
         string ipAddr; // 节点IP地址
         uint256[2][] pubKeys;  // schnorr公钥；
+        uint256[4][] blsPubKeys; // bls公钥
         uint256 stake; // 质押
         uint256 rank;  // 可信等级，即公钥数量
         uint256 index;
@@ -53,7 +54,7 @@ contract OracleContract{
         _;
     }
 
-    function registerOracleNode(string calldata _ipAddr, uint256[2][] calldata _pubKey, uint256 rank)
+    function registerOracleNode(string calldata _ipAddr, uint256[2][] calldata _pubKey, uint256[4][] calldata _blsPubKey, uint256 rank)
         external
         payable
     {
@@ -69,6 +70,7 @@ contract OracleContract{
         iopNode.addr = msg.sender;
         iopNode.ipAddr = _ipAddr;
         iopNode.pubKeys = _pubKey;
+        iopNode.blsPubKeys = _blsPubKey;
         iopNode.stake = msg.value;
         iopNode.rank = rank;
         iopNode.index = oracleNodeIndices.length;
@@ -180,7 +182,7 @@ contract OracleContract{
         // isValidateTime = false;
     }
 
-    // 点加进行Hash恢复公钥，gas: 378116
+    // 点加进行Hash恢复公钥，gas: 314596
     function submitValidationResult(
         ValidationType _typ,
         bool _result,
@@ -201,35 +203,33 @@ contract OracleContract{
         // require(totalRank >= currentRank, "low total rank");
             
         // 公钥重新聚合
-        uint256 Sx = 0;
-        uint256 Sy = 0;
-        for(uint16 i = 0; i < validators.length; i++){
-            for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length; j++){
-                (Sx, Sy) = BN256G1.addPoint([Sx, Sy, oracleNodes[validators[i]].pubKeys[j][0], oracleNodes[validators[i]].pubKeys[j][1]]);
-            }
-        }
-        
-        uint256 pubKeyX = 0;
-        uint256 pubKeyY = 0;
+        // uint256 Sx = 0;
+        // uint256 Sy = 0;
+        // for(uint16 i = 0; i < validators.length; i++){
+        //     for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length; j++){
+        //         (Sx, Sy) = BN256G1.addPoint([Sx, Sy, oracleNodes[validators[i]].pubKeys[j][0], oracleNodes[validators[i]].pubKeys[j][1]]);
+        //     }
+        // }
+    
 
-        for(uint16 i = 0; i < validators.length; i++){
+        // for(uint16 i = 0; i < validators.length; i++){
 
-            for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length ; j++){
-                uint256 tempX = oracleNodes[validators[i]].pubKeys[j][0];
-                uint256 tempY = oracleNodes[validators[i]].pubKeys[j][1];
+        //     for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length ; j++){
+        //         uint256 tempX = oracleNodes[validators[i]].pubKeys[j][0];
+        //         uint256 tempY = oracleNodes[validators[i]].pubKeys[j][1];
 
-                uint256 pkX;
-                uint256 pkY;
-                (pkX, pkY) = BN256G1.addPoint([tempX, tempY, Sx, Sy]);
+        //         uint256 pkX;
+        //         uint256 pkY;
+        //         (pkX, pkY) = BN256G1.addPoint([tempX, tempY, Sx, Sy]);
                 
-                uint256 res = uint256(sha256(abi.encode(pkX, pkY)));
-                (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
-                (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
-            }
-        }
+        //         uint256 res = uint256(sha256(abi.encode(pkX, pkY)));
+        //         (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
+        //         (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
+        //     }
+        // }
 
         /*Schnorr签名的验证*/
-        require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+        // require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
         // require(Schnorr.verify(signature, keyX, keyY, rx, ry, _hash), "sig: address doesn't match");
 
         // if (_typ == ValidationType.BLOCK) {
@@ -243,12 +243,13 @@ contract OracleContract{
         // // 给所有的参与验证的验证器节点转账
 
         // for(uint32 i = 0 ; i < validators.length ; i++){
-        //     if(address(this).balance >= BASE_FEE * registryContract.getNodeRank(validators[i])){
-        //         payable(validators[i]).transfer(BASE_FEE * registryContract.getNodeRank(validators[i])); 
+        //     if(address(this).balance >= BASE_FEE * getNodeRank(validators[i])){
+        //         payable(validators[i]).transfer(BASE_FEE * getNodeRank(validators[i])); 
         //     } else{
         //         payable(validators[i]).transfer(address(this).balance); 
         //     }
         // }
+
     }
 
     // 直接上传多重公钥，以及签名者公钥集合 gas: 273551
@@ -296,5 +297,74 @@ contract OracleContract{
                 payable(validators[i]).transfer(address(this).balance); 
             }
         }
+    }
+
+    function submitValidationResultBls(
+        ValidationType _typ,
+        bool _result,
+        bytes32 message,
+        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, 
+        address[] memory validators
+    ) private {
+        // require(_typ != ValidationType.UNKNOWN, "unknown validation type");
+        // require(registryContract.getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
+    
+        // uint256 totalRank = 0;
+        // for(uint16 i = 0 ; i < validators.length ; i++){
+        //     // 验证单个节点的信誉值；
+        //     uint256 rank = registryContract.getNodeRank(validators[i]);
+        //     require(rank >= currentRank, "low singal rank");
+        //     totalRank += rank;
+        // }
+        // require(totalRank >= currentRank, "low total rank");
+            
+        // 公钥重新聚合
+        // uint256 Sx = 0;
+        // uint256 Sy = 0;
+        // for(uint16 i = 0; i < validators.length; i++){
+        //     for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length; j++){
+        //         (Sx, Sy) = BN256G1.addPoint([Sx, Sy, oracleNodes[validators[i]].pubKeys[j][0], oracleNodes[validators[i]].pubKeys[j][1]]);
+        //     }
+        // }
+    
+
+        // for(uint16 i = 0; i < validators.length; i++){
+
+        //     for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length ; j++){
+        //         uint256 tempX = oracleNodes[validators[i]].pubKeys[j][0];
+        //         uint256 tempY = oracleNodes[validators[i]].pubKeys[j][1];
+
+        //         uint256 pkX;
+        //         uint256 pkY;
+        //         (pkX, pkY) = BN256G1.addPoint([tempX, tempY, Sx, Sy]);
+                
+        //         uint256 res = uint256(sha256(abi.encode(pkX, pkY)));
+        //         (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
+        //         (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
+        //     }
+        // }
+
+        /*Schnorr签名的验证*/
+        // require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+        // require(Schnorr.verify(signature, keyX, keyY, rx, ry, _hash), "sig: address doesn't match");
+
+        // if (_typ == ValidationType.BLOCK) {
+        //     blockValidationResults[message] = _result;
+        // } else if (_typ == ValidationType.TRANSACTION) {
+        //     txValidationResults[message] = _result;
+        // }
+
+        // // 给当前合约的调用者（聚合器）转账 
+        // payable(msg.sender).transfer(AGGREGATE_FEE);     //此处完成给聚合器的报酬转账
+        // // 给所有的参与验证的验证器节点转账
+
+        // for(uint32 i = 0 ; i < validators.length ; i++){
+        //     if(address(this).balance >= BASE_FEE * getNodeRank(validators[i])){
+        //         payable(validators[i]).transfer(BASE_FEE * getNodeRank(validators[i])); 
+        //     } else{
+        //         payable(validators[i]).transfer(address(this).balance); 
+        //     }
+        // }
+
     }
 }
