@@ -3,6 +3,7 @@ package iop
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"net"
@@ -236,8 +237,36 @@ func (n *OracleNode) register(ipAddr string) error {
 	}
 
 	for _, publicKey := range blsPublicKey {
+		fmt.Println("publicKey: ", publicKey)
 
 		publicKeyToBig, err := G2PointToBig(publicKey)
+
+		// publicKeyToByte := make([]byte, 0)
+
+		// for z := 0; z < 4; z++ {
+		// 	bigByte := publicKeyToBig[z].Bytes()
+		// 	for _, b := range bigByte {
+		// 		publicKeyToByte = append(publicKeyToByte, b)
+		// 	}
+
+		// }
+		// fmt.Println("247", len(publicKeyToByte), publicKeyToByte)
+		// pointS := n.suite.G2().Point().Null()
+		// pointS.UnmarshalBinary(publicKeyToByte)
+
+		// fmt.Println("pointS", pointS)
+
+		hash1 := sha256.New()
+
+		// hash1.Write(S)
+		summarySBytes := make([]byte, 0)
+		hash1.Write(summarySBytes)
+		aI := hash1.Sum(nil)
+
+		aScalarG1 := n.suite.G1().Scalar().SetBytes(aI)
+		aScalarG2 := n.suite.G2().Scalar().SetBytes(aI)
+
+		fmt.Println("269", aScalarG1 == aScalarG2)
 
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
