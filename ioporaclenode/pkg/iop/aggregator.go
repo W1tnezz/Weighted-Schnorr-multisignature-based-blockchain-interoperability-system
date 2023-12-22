@@ -483,7 +483,7 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 	PointBig, err := a.oracleContract.GetNodeBLSPublicKeysSub(nil)
 
 	if err != nil {
-		fmt.Println("GetNodeBLSPublicKeysSub : ", err)
+		fmt.Println("GetNodeBLSPublicKeysSub : ", err, PointBig)
 	}
 
 	var buffer bytes.Buffer
