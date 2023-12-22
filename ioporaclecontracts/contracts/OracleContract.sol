@@ -153,6 +153,10 @@ contract OracleContract{
                 if(i == 0 && j == 0){
                     continue;
                 }
+                require(BN256G2._isOnCurve(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]), string(abi.encode(j + 48)));
+
+                require(BN256G2._isOnCurve(temp[j][0], temp[j][1], temp[j][2], temp[j][3]), "111");
+
                 (pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]) = BN256G2.ecTwistAdd(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3], temp[j][0], temp[j][1], temp[j][2], temp[j][3]);
                 
                 require(BN256G2._isOnCurve(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]), string(abi.encode(j + 48)));
