@@ -307,7 +307,9 @@ loop:
 				Signatures = append(Signatures, sI) //获取到所有的签名
 				// Rs = append(Rs, RI)
 
-				// PK = append(PK, enrollNode.PubKeys)
+				// PK = append(PK, enrollNode.PubKeys)   // schnorr
+
+				PK = append(PK, enrollNode.blsPubKeys) // bls
 			}
 		}()
 	}
