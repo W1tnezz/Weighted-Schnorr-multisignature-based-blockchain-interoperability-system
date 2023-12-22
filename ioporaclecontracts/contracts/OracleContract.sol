@@ -159,6 +159,10 @@ contract OracleContract{
         return pubkeySub;
     }
 
+    function isOnCurve(uint256[4] calldata point) public pure {
+        require(BN256G2._isOnCurve(point[0], point[1], point[2], point[3]), "not on curve");
+    }
+
     function isAggregator(address _addr) public view returns (bool) {
         return _addr == aggregatorAddr;
     }
