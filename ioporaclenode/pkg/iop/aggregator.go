@@ -309,7 +309,7 @@ loop:
 
 				// PK = append(PK, enrollNode.PubKeys)   // schnorr
 
-				PK = append(PK, enrollNode.blsPubKeys) // bls
+				PK = append(PK, enrollNode.BlsPubKeys) // bls
 			}
 		}()
 	}
@@ -346,7 +346,7 @@ func (a *Aggregator) HandleResultForBls(result *ValidateResponse, PointSize int)
 	for i := int64(0); i < result.Reputation; i++ {
 		sSliceByte := result.Signature[i*int64(PointSize) : (i+1)*int64(PointSize)]
 
-		sSlice := a.suite.G2().Point().Base()
+		sSlice := a.suite.G1().Point().Base()
 		err := sSlice.UnmarshalBinary(sSliceByte)
 		if err != nil {
 			fmt.Println("UnmarshalBinary Si for Bls ,", err)
@@ -480,9 +480,20 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 	pkSet := make([][4]*big.Int, 0)
 
-	zeroPointBytes := make([]byte, 64)
+	PointBig, err := a.oracleContract.GetNodeBLSPublicKeysSub(nil)
+
+	if err != nil {
+		fmt.Println("GetNodeBLSPublicKeysSub : ", err)
+	}
+
+	var buffer bytes.Buffer
+	for z := 0; z < 4; z++ {
+		buffer.Write(PointBig[z].Bytes())
+	}
+	fmt.Println("493", len(buffer.Bytes()))
 	pointS := a.suite.G2().Point().Base()
-	pointS.UnmarshalBinary(zeroPointBytes)
+	pointS.UnmarshalBinary(buffer.Bytes())
+
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 			// 构造Point累加形式的S

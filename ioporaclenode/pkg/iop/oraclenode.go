@@ -212,8 +212,8 @@ func (n *OracleNode) register(ipAddr string) error {
 	}
 
 	schnorrPublicKey := make([]kyber.Point, 0)
-	for _, schnorrPrivateKey := range n.schnorrPrivateKey {
-		schnorrPublicKey = append(schnorrPublicKey, n.suite.Point().Mul(schnorrPrivateKey, nil))
+	for _, schnorrPrivateKey := range n.PrivateKey {
+		schnorrPublicKey = append(schnorrPublicKey, n.suite.G1().Point().Mul(schnorrPrivateKey, nil))
 	}
 
 	blsPublicKey := make([]kyber.Point, 0)
