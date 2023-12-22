@@ -81,7 +81,7 @@ contract OracleContract{
         iopNode.ipAddr = _ipAddr;
         iopNode.pubKeys = _pubKey;
         iopNode.blsPubKeys = _blsPubKey;
-        require(BN256G2._isOnCurve(_blsPubKey[0][0], _blsPubKey[1][0], _blsPubKey[2][0], _blsPubKey[3][0]), "not on curve!");
+        require(isOnCurve(_blsPubKey[0]), "not on curve!");
         iopNode.stake = msg.value;
         iopNode.rank = rank;
         iopNode.index = oracleNodeIndices.length;
@@ -167,8 +167,9 @@ contract OracleContract{
         return pubkeySub;
     }
 
-    function isOnCurve(uint256[4] calldata point) public pure {
+    function isOnCurve(uint256[4] calldata point) public pure returns (bool){
         require(BN256G2._isOnCurve(point[0], point[1], point[2], point[3]), "not on curve");
+        return BN256G2._isOnCurve(point[0], point[1], point[2], point[3]);
     }
 
     function isAggregator(address _addr) public view returns (bool) {
