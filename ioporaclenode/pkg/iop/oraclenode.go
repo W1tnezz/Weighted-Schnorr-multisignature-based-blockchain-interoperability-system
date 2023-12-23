@@ -20,7 +20,6 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
 	"google.golang.org/grpc"
-
 )
 
 type OracleNode struct {
@@ -239,6 +238,11 @@ func (n *OracleNode) register(ipAddr string) error {
 	}
 
 	for _, publicKey := range blsPublicKey {
+		// publicKeyByte, _ := publicKey.MarshalBinary()
+
+		// p := n.suite.G2().Point()
+		// p.UnmarshalBinary(publicKeyByte)
+		// fmt.Println("246", p.Equal(publicKey), p, publicKey)
 
 		publicKeyToBig, err := G2PointToBig(publicKey)
 
@@ -279,6 +283,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
+
 		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, bBls, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)

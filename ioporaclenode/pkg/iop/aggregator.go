@@ -179,7 +179,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	// result, MulSig, MulR, _hash, MulY, nodes, pkSet, err := a.AggregateValidationResults(ctx, event.Hash, typ) // schnorr
 	result, MulSig, _hash, MulY, nodes, pkSet, err := a.AggregateValidationResults(ctx, event.Hash, typ)
 
-	pk, err := G1PointToBig(MulY)
+	pk, err := G2PointToBig(MulY)
 	_, _ = pk, pkSet
 
 	if err != nil {
@@ -218,7 +218,8 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	case ValidateRequest_block:
 		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
+		// _, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
+		// _, err = a.oracleContract.
 	default:
 		return fmt.Errorf("unknown validation request type %s", typ)
 	}
@@ -310,6 +311,7 @@ loop:
 				// PK = append(PK, enrollNode.PubKeys)   // schnorr
 
 				PK = append(PK, enrollNode.BlsPubKeys) // bls
+
 			}
 		}()
 	}
@@ -346,7 +348,7 @@ func (a *Aggregator) HandleResultForBls(result *ValidateResponse, PointSize int)
 	for i := int64(0); i < result.Reputation; i++ {
 		sSliceByte := result.Signature[i*int64(PointSize) : (i+1)*int64(PointSize)]
 
-		sSlice := a.suite.G1().Point().Base()
+		sSlice := a.suite.G1().Point()
 		err := sSlice.UnmarshalBinary(sSliceByte)
 		if err != nil {
 			fmt.Println("UnmarshalBinary Si for Bls ,", err)
@@ -363,13 +365,13 @@ func (a *Aggregator) AggregateSignatureForSchnorr(txHash common.Hash, typ Valida
 	pkSet := make([][2]*big.Int, 0)
 
 	zeroPointBytes := make([]byte, 64)
-	pointS := a.suite.G1().Point().Base()
+	pointS := a.suite.G1().Point()
 	pointS.UnmarshalBinary(zeroPointBytes)
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 			// 构造Point累加形式的S
 			PKbytes := append(PK[i][j][0].Bytes(), PK[i][j][1].Bytes()...)
-			PKpoint := a.suite.G1().Point().Base()
+			PKpoint := a.suite.G1().Point()
 			PKpoint.UnmarshalBinary(PKbytes)
 			pointS = a.suite.G1().Point().Add(pointS, PKpoint)
 
@@ -497,7 +499,7 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 	}
 	fmt.Println("493", len(PointByte))
-	pointS := a.suite.G2().Point().Null()
+	pointS := a.suite.G2().Point()
 	err1 := pointS.UnmarshalBinary(PointByte)
 	if err1 != nil {
 		fmt.Println("501", err1)
@@ -506,20 +508,28 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 			// 构造Point累加形式的S
-			PKbytes := make([]byte, 0)
+			PKbytes := make([]byte, 128)
 
 			for _, z := range [4]int{1, 0, 3, 2} {
 				bigByte := PK[i][j][z].Bytes()
-				for _, b := range bigByte {
-					PKbytes = append(PKbytes, b)
+				sub := 32 - len(bigByte)
+
+				bigByte = make([]byte, 128)
+
+				for i := 0; i < sub; i++ {
+					bigByte = append(bigByte, 0)
 				}
 
+				bigByte = append(bigByte, PK[i][j][z].Bytes()...)
+				PKbytes = append(PKbytes, bigByte...)
+
 			}
-			PKpoint := a.suite.G2().Point().Null()
+			PKpoint := a.suite.G2().Point()
 			err := PKpoint.UnmarshalBinary(PKbytes)
 			if err != nil {
-				fmt.Println()
+				fmt.Println("translate PK ", err)
 			}
+
 			pointS = a.suite.G2().Point().Add(pointS, PKpoint)
 
 			pkSet = append(pkSet, PK[i][j])
@@ -541,6 +551,14 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 	// MulY := a.suite.G1().Point().Null()   // schnorr
 
 	MulY := a.suite.G2().Point().Null() // bls
+
+	message, _ := encodeValidateResult(txHash, true, typ)
+
+	hash := sha256.New()
+	hash.Write(message)
+
+	messageHash := hash.Sum(nil)
+	_hash := a.suite.G1().Point().Mul(a.suite.G1().Scalar().SetBytes(messageHash), nil)
 
 	for i := 0; i < len(nodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
@@ -580,20 +598,27 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 			// bls
 
-			PKbytes := make([]byte, 0)
+			PKbytes := make([]byte, 128)
 
 			for _, z := range [4]int{1, 0, 3, 2} {
 				bigByte := PK[i][j][z].Bytes()
-				for _, b := range bigByte {
-					PKbytes = append(PKbytes, b)
+				sub := 32 - len(bigByte)
+
+				bigByte = make([]byte, 128)
+
+				for i := 0; i < sub; i++ {
+					bigByte = append(bigByte, 0)
 				}
 
+				bigByte = append(bigByte, PK[i][j][z].Bytes()...)
+				PKbytes = append(PKbytes, bigByte...)
+
 			}
-			pk := a.suite.G2().Point().Null()
+			pk := a.suite.G2().Point()
 			err := pk.UnmarshalBinary(PKbytes)
 
 			if err != nil {
-				fmt.Println("translate pk ", err)
+				fmt.Println("translate pk ", err, len(PKbytes))
 			}
 
 			// 累加S
@@ -610,19 +635,12 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 			aI := hash1.Sum(nil)
 
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
+			fmt.Println("629", a.suite.Pair(_hash, pk).Equal(a.suite.Pair(Signatures[i][j], a.suite.G2().Point().Base())))
 			MulSignature.Add(MulSignature, a.suite.G1().Point().Mul(aScalar, Signatures[i][j]))
 			MulY.Add(MulY, a.suite.G2().Point().Mul(aScalar, pk))
 
 		}
 	}
-
-	message, _ := encodeValidateResult(txHash, true, typ)
-
-	hash := sha256.New()
-	hash.Write(message)
-
-	messageHash := hash.Sum(nil)
-	_hash := a.suite.G1().Point().Mul(a.suite.G1().Scalar().SetBytes(messageHash), nil)
 
 	left := a.suite.Pair(_hash, MulY)
 	right := a.suite.Pair(MulSignature, a.suite.G2().Point().Base())
