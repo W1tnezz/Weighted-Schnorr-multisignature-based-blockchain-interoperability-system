@@ -133,9 +133,40 @@ func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, e
 	_hash := v.suite.G1().Point().Mul(v.suite.G1().Scalar().SetBytes(messageHash), nil)
 
 	signature := make([][]byte, 2)
+	node, _ := v.oracleContract.FindOracleNodeByAddress(nil, v.account)
 
 	for i := int64(0); i < v.reputation; i++ {
 		sI := v.suite.G1().Point().Mul(v.privateKey[i], _hash)
+		pubkey := node.BlsPubKeys[i]
+		fmt.Println("141", pubkey)
+
+		PKbytes := make([]byte, 0)
+
+		for _, z := range [4]int{1, 0, 3, 2} {
+
+			sub := 32 - len(pubkey[z].Bytes())
+
+			bigByte := make([]byte, sub)
+
+			// for i := 0; i < sub; i++ {
+			// 	bigByte = append(bigByte, 0)
+			// }
+
+			bigByte = append(bigByte, pubkey[z].Bytes()...)
+			PKbytes = append(PKbytes, bigByte...)
+
+		}
+		pk := v.suite.G2().Point()
+		err := pk.UnmarshalBinary(PKbytes)
+		if err != nil {
+			fmt.Println("161 translate pk", err)
+		}
+		fmt.Println("163", v.privateKey)
+		for j, privateKey := range v.privateKey {
+			fmt.Println("165", pk.Equal(v.suite.G2().Point().Mul(privateKey, nil)), i, j)
+		}
+		fmt.Println("pk", pk, PKbytes, pubkey, v.suite.G2().Point().Mul(v.privateKey[i], nil))
+		fmt.Println("139", v.suite.Pair(_hash, pk).Equal(v.suite.Pair(sI, v.suite.G2().Point().Base())))
 		siBytes, _ := sI.MarshalBinary()
 		for _, b := range siBytes {
 			signature[0] = append(signature[0], b)

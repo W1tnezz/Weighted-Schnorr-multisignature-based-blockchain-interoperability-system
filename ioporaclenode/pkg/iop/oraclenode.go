@@ -224,6 +224,8 @@ func (n *OracleNode) register(ipAddr string) error {
 		blsPublicKey = append(blsPublicKey, n.suite.G2().Point().Mul(privateKey, nil))
 	}
 
+	fmt.Println("oracleNode", n.PrivateKey)
+
 	bSchnorr := make([][2]*big.Int, 0) // schnorr
 	bBls := make([][4]*big.Int, 0)     // bls
 
@@ -237,18 +239,34 @@ func (n *OracleNode) register(ipAddr string) error {
 		bSchnorr = append(bSchnorr, publicKeyToBig)
 	}
 
-	for _, publicKey := range blsPublicKey {
+	for i, publicKey := range blsPublicKey {
 		// publicKeyByte, _ := publicKey.MarshalBinary()
 
 		// p := n.suite.G2().Point()
 		// p.UnmarshalBinary(publicKeyByte)
 		// fmt.Println("246", p.Equal(publicKey), p, publicKey)
-
-		log.Info(publicKey)
-		byte1 :=
-		log.Info(n.suite.G2().Point().Base().MarshalBinary(publicKey.UnmarshalBinary()))
-
+		fmt.Println("248", publicKey.Equal(n.suite.G2().Point().Mul(n.PrivateKey[i], nil)))
 		publicKeyToBig, err := G2PointToBig(publicKey)
+		// PKbytes := make([]byte, 0)
+
+		// for _, z := range [4]int{1, 0, 3, 2} {
+		// 	bigByte := publicKeyToBig[z].Bytes()
+		// 	sub := 32 - len(bigByte)
+
+		// 	bigByte = make([]byte, 0)
+
+		// 	for i := 0; i < sub; i++ {
+		// 		bigByte = append(bigByte, 0)
+		// 	}
+
+		// 	bigByte = append(bigByte, publicKeyToBig[z].Bytes()...)
+		// 	PKbytes = append(PKbytes, bigByte...)
+
+		// }
+		// for i, _ := range publicKeyByte {
+		// 	fmt.Println(publicKeyByte[i] == PKbytes[i])
+		// }
+		// fmt.Println(publicKeyByte, PKbytes)
 
 		// publicKeyToByte := make([]byte, 0)
 
@@ -287,7 +305,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
-
+		fmt.Println("308", bBls)
 		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, bBls, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
