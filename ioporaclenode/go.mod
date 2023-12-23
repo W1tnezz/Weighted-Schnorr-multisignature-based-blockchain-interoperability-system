@@ -7,9 +7,10 @@ require (
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.8.1
+	github.com/umbracle/go-eth-bn256 v0.0.0-20230125114011-47cb310d9b0b
 	go.dedis.ch/fixbuf v1.0.3
 	go.dedis.ch/kyber/v3 v3.0.13
-	golang.org/x/sys v0.13.0
+	golang.org/x/sys v0.15.0
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.31.0
 )
@@ -40,9 +41,9 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect

@@ -17,7 +17,7 @@ contract OracleContract{
         uint256 index;
     }
 
-    uint256 public constant MIN_STAKE = 1 ether;
+    uint256 public MIN_STAKE = 1 ether;
     bool private hasAggregator;
     address private aggregatorAddr;
     string private aggregatorIP;
@@ -65,7 +65,7 @@ contract OracleContract{
     }
 
     function registerOracleNode(string calldata _ipAddr, uint256[2][] calldata _pubKey, uint256[4][] calldata _blsPubKey, uint256 rank)
-        external
+        public
         payable
     {
         require(!oracleNodeIsRegistered(msg.sender), "already registered");
@@ -81,7 +81,7 @@ contract OracleContract{
         iopNode.ipAddr = _ipAddr;
         iopNode.pubKeys = _pubKey;
         iopNode.blsPubKeys = _blsPubKey;
-        require(isOnCurve(_blsPubKey[0]), "not on curve!");
+        require(BN256G2._isOnCurve(_blsPubKey[0][0], _blsPubKey[0][1], _blsPubKey[0][2], _blsPubKey[0][3]), "not on curve!");
         iopNode.stake = msg.value;
         iopNode.rank = rank;
         iopNode.index = oracleNodeIndices.length;
@@ -146,30 +146,16 @@ contract OracleContract{
         return oracleNodes[addr].blsPubKeys;
     }
 
-    function getNodeBLSPublicKeysSub() public view returns (uint256[4] memory){
-        uint256[4] memory pubkeySub;
-        (pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]) = (oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][0], oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][1], oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][2], oracleNodes[oracleNodeIndices[0]].blsPubKeys[0][3]);
+    function getNodeBLSPublicKeysSum() public view returns (uint256[4] memory){
+        uint256[4] memory pubkeySum;
+        (pubkeySum[0], pubkeySum[1], pubkeySum[2], pubkeySum[3]) = (uint256(0), 0, 0, 0);
         for(uint8 i = 0; i < oracleNodeIndices.length; i++){
             uint256[4][] memory temp = oracleNodes[oracleNodeIndices[i]].blsPubKeys;
             for(uint256 j = 0; j < temp.length; j++){
-                if(i == 0 && j == 0){
-                    continue;
-                }
-                require(BN256G2._isOnCurve(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]), string(abi.encode(j + 48)));
-
-                require(BN256G2._isOnCurve(temp[j][0], temp[j][1], temp[j][2], temp[j][3]), "111");
-
-                (pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]) = BN256G2.ecTwistAdd(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3], temp[j][0], temp[j][1], temp[j][2], temp[j][3]);
-                
-                require(BN256G2._isOnCurve(pubkeySub[0], pubkeySub[1], pubkeySub[2], pubkeySub[3]), string(abi.encode(j + 48)));
+                (pubkeySum[0], pubkeySum[1], pubkeySum[2], pubkeySum[3]) = BN256G2.ecTwistAdd(pubkeySum[0], pubkeySum[1], pubkeySum[2], pubkeySum[3], temp[j][0], temp[j][1], temp[j][2], temp[j][3]);
             }
         }
-        return pubkeySub;
-    }
-
-    function isOnCurve(uint256[4] calldata point) public pure returns (bool){
-        require(BN256G2._isOnCurve(point[0], point[1], point[2], point[3]), "not on curve");
-        return BN256G2._isOnCurve(point[0], point[1], point[2], point[3]);
+        return pubkeySum;
     }
 
     function isAggregator(address _addr) public view returns (bool) {
@@ -350,38 +336,32 @@ function submitValidationResultBLS(
     ) private {
 
         uint256[2] memory hash = BN256G1.hashToPointSha256(abi.encode(_hash, _result, _typ));
-        uint256[4] memory S = getNodeBLSPublicKeysSub();
+        uint256[4] memory S = getNodeBLSPublicKeysSum();
         for(uint8 i = 0; i < validators.length; i++){
             for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
                 (S[0], S[1], S[2], S[3]) = BN256G2.ecTwistAdd(S[0], S[1], S[2], S[3], oracleNodes[validators[i]].blsPubKeys[j][0], oracleNodes[validators[i]].blsPubKeys[j][1], oracleNodes[validators[i]].blsPubKeys[j][2], oracleNodes[validators[i]].blsPubKeys[j][3]);
             }
         }
 
-        uint256[4] memory publicKey;
+        uint256[4] memory publicKey = [uint256(0), 0, 0, 0];
         for(uint8 i = 0; i < validators.length; i++){
             for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
                 uint256[4] memory temp = oracleNodes[validators[i]].blsPubKeys[j];
                 uint256[4] memory pk;
                 (pk[0], pk[1], pk[2], pk[3]) = BN256G2.ecTwistAdd(temp[0], temp[1], temp[2], temp[3], S[0], S[1], S[2], S[3]);
-                
                 uint256 res = uint256(sha256(abi.encode(pk[0], pk[1], pk[2], pk[3])));
                 (temp[0], temp[1], temp[2], temp[3]) = BN256G2.ecTwistMul(res, temp[0], temp[1], temp[2], temp[3]);
-                if(i == 0 && j == 0){
-                    (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = (temp[0], temp[1], temp[2], temp[3]);
-                }else{
-                    (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = BN256G2.ecTwistAdd(publicKey[0], publicKey[1], publicKey[2], publicKey[3], temp[0], temp[1], temp[2], temp[3]);
-            
-                }
+                (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = BN256G2.ecTwistAdd(publicKey[0], publicKey[1], publicKey[2], publicKey[3], temp[0], temp[1], temp[2], temp[3]);
             }
         }
         uint256[12] memory input =
             [
                 hash[0],
                 hash[1],
-                publicKey[0],
                 publicKey[1],
-                publicKey[2],
+                publicKey[0],
                 publicKey[3],
+                publicKey[2],
                 _signature[0],
                 _signature[1],
                 G2_NEG_X_RE,

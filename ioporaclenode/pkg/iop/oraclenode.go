@@ -20,6 +20,7 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/suites"
 	"google.golang.org/grpc"
+
 )
 
 type OracleNode struct {
@@ -81,8 +82,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		return nil, fmt.Errorf("dist key contract: %v", err)
 	}
 
-	suiteG1 := bn256.NewSuiteG1()
-	suiteG2 := bn256.NewSuiteG2()
+	suite := bn256.NewSuite()
 
 	ecdsaPrivateKey, err := crypto.HexToECDSA(c.Ethereum.PrivateKey)
 	if err != nil {
@@ -263,8 +263,6 @@ func (n *OracleNode) register(ipAddr string) error {
 		// re1 , _ := ScalarToBig(aScalarG1)
 		// re2 , _ := ScalarToBig(aScalarG2)
 
-		n.oracleContract.IsOnCurve(nil, publicKeyToBig)
-
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
 		}
@@ -285,7 +283,10 @@ func (n *OracleNode) register(ipAddr string) error {
 
 	if !isRegistered {
 		for _, bbBlsBig := range bBls {
-			n.oracleContract.IsOnCurve(nil, bbBlsBig)
+			_, err := n.oracleContract.IsOnCurve(auth, bbBlsBig)
+			if err != nil {
+				return fmt.Errorf("is on curve?: %w", err)
+			}
 			fmt.Println(bbBlsBig)
 		}
 		fmt.Println(bBls)
