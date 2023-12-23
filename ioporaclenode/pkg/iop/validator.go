@@ -46,7 +46,7 @@ type Validator struct {
 	account           common.Address
 	kafkaWriter       *kafka.Writer
 	kafkaReader       *kafka.Reader
-	schnorrPrivateKey []kyber.Scalar
+	privateKey        []kyber.Scalar
 	reputation        int64
 	enrolled          bool
 }
@@ -61,7 +61,7 @@ func NewValidator(
 	account common.Address,
 	kafkaWriter *kafka.Writer,
 	kafkaReader *kafka.Reader,
-	schnorrPrivateKey []kyber.Scalar,
+	privateKey []kyber.Scalar,
 	reputation int64,
 
 ) *Validator {
@@ -75,7 +75,7 @@ func NewValidator(
 		account:           account,
 		kafkaWriter:       kafkaWriter,
 		kafkaReader:       kafkaReader,
-		schnorrPrivateKey: schnorrPrivateKey,
+		privateKey:        privateKey,
 		reputation:        reputation,
 		enrolled:          false,
 	}
@@ -129,13 +129,13 @@ func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, e
 	hash.Write(message)
 
 	messageHash := hash.Sum(nil)
-	
+
 	_hash := v.suite.G1().Point().Mul(v.suite.G1().Scalar().SetBytes(messageHash), nil)
-	
+
 	signature := make([][]byte, 2)
 
 	for i := int64(0); i < v.reputation; i++ {
-		sI := v.suite.G1().Point().Mul(v.schnorrPrivateKey[i], _hash)
+		sI := v.suite.G1().Point().Mul(v.privateKey[i], _hash)
 		siBytes, _ := sI.MarshalBinary()
 		for _, b := range siBytes {
 			signature[0] = append(signature[0], b)
@@ -199,7 +199,7 @@ loop:
 
 	s := make([]kyber.Scalar, 0)
 	for i := int64(0); i < v.reputation; i++ {
-		sI := v.suite.G1().Scalar().Add(rI[i], v.suite.G1().Scalar().Mul(v.suite.G1().Scalar().SetBytes(e), v.schnorrPrivateKey[i]))
+		sI := v.suite.G1().Scalar().Add(rI[i], v.suite.G1().Scalar().Mul(v.suite.G1().Scalar().SetBytes(e), v.privateKey[i]))
 		s = append(s, sI)
 	}
 
