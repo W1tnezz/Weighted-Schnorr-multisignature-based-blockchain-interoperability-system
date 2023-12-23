@@ -17,7 +17,7 @@ contract OracleContract{
         uint256 index;
     }
 
-    uint256 public constant MIN_STAKE = 1 ether;
+    uint256 public MIN_STAKE = 1 ether;
     bool private hasAggregator;
     address private aggregatorAddr;
     string private aggregatorIP;
@@ -65,7 +65,7 @@ contract OracleContract{
     }
 
     function registerOracleNode(string calldata _ipAddr, uint256[2][] calldata _pubKey, uint256[4][] calldata _blsPubKey, uint256 rank)
-        external
+        public
         payable
     {
         require(!oracleNodeIsRegistered(msg.sender), "already registered");
@@ -81,7 +81,7 @@ contract OracleContract{
         iopNode.ipAddr = _ipAddr;
         iopNode.pubKeys = _pubKey;
         iopNode.blsPubKeys = _blsPubKey;
-        require(isOnCurve(_blsPubKey[0]), "not on curve!");
+        require(BN256G2._isOnCurve(_blsPubKey[0][0], _blsPubKey[0][1], _blsPubKey[0][2], _blsPubKey[0][3]), "not on curve!");
         iopNode.stake = msg.value;
         iopNode.rank = rank;
         iopNode.index = oracleNodeIndices.length;
@@ -167,9 +167,9 @@ contract OracleContract{
         return pubkeySub;
     }
 
-    function isOnCurve(uint256[4] calldata point) public pure returns (bool){
+    function isOnCurve(uint256[4] calldata point) external payable{
         require(BN256G2._isOnCurve(point[0], point[1], point[2], point[3]), "not on curve");
-        return BN256G2._isOnCurve(point[0], point[1], point[2], point[3]);
+        MIN_STAKE = 1 ether;
     }
 
     function isAggregator(address _addr) public view returns (bool) {
