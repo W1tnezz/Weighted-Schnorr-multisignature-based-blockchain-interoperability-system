@@ -488,7 +488,8 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 	PointByte := make([]byte, 0)
 
-	for z := 0; z < 4; z++ {
+	for _, z := range [4]int{1, 0, 3, 2} {
+		fmt.Println(z, PointBig)
 		bigByte := PointBig[z].Bytes()
 		for _, b := range bigByte {
 			PointByte = append(PointByte, b)
@@ -497,14 +498,17 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 	}
 	fmt.Println("493", len(PointByte))
 	pointS := a.suite.G2().Point().Null()
-	pointS.UnmarshalBinary(PointByte)
+	err1 := pointS.UnmarshalBinary(PointByte)
+	if err1 != nil {
+		fmt.Println("501", err1)
+	}
 
 	for i := 0; i < len(a.enrollNodes); i++ {
 		for j := 0; j < len(PK[i]); j++ {
 			// 构造Point累加形式的S
 			PKbytes := make([]byte, 0)
 
-			for z := 0; z < 4; z++ {
+			for _, z := range [4]int{1, 0, 3, 2} {
 				bigByte := PK[i][j][z].Bytes()
 				for _, b := range bigByte {
 					PKbytes = append(PKbytes, b)
@@ -512,7 +516,10 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 			}
 			PKpoint := a.suite.G2().Point().Null()
-			PKpoint.UnmarshalBinary(PKbytes)
+			err := PKpoint.UnmarshalBinary(PKbytes)
+			if err != nil {
+				fmt.Println()
+			}
 			pointS = a.suite.G2().Point().Add(pointS, PKpoint)
 
 			pkSet = append(pkSet, PK[i][j])
@@ -575,7 +582,7 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 			PKbytes := make([]byte, 0)
 
-			for z := 0; z < 4; z++ {
+			for _, z := range [4]int{1, 0, 3, 2} {
 				bigByte := PK[i][j][z].Bytes()
 				for _, b := range bigByte {
 					PKbytes = append(PKbytes, b)
@@ -584,7 +591,7 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 			}
 			pk := a.suite.G2().Point().Null()
 			err := pk.UnmarshalBinary(PKbytes)
-			
+
 			if err != nil {
 				fmt.Println("translate pk ", err)
 			}
@@ -617,8 +624,8 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 	messageHash := hash.Sum(nil)
 	_hash := a.suite.G1().Point().Mul(a.suite.G1().Scalar().SetBytes(messageHash), nil)
 
-	left := a.suite.Pair(MulY, _hash)
-	right := a.suite.Pair(a.suite.G2().Point().Base(), MulSignature)
+	left := a.suite.Pair(_hash, MulY)
+	right := a.suite.Pair(MulSignature, a.suite.G2().Point().Base())
 	fmt.Println("435 bls", right.Equal(left))
 	a.enrollNodes = []int64{}
 

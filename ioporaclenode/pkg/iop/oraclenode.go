@@ -18,7 +18,7 @@ import (
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/suites"
+	"go.dedis.ch/kyber/v3/pairing"
 	"google.golang.org/grpc"
 
 )
@@ -30,8 +30,7 @@ type OracleNode struct {
 	targetEthClient *ethclient.Client
 	sourceEthClient *ethclient.Client
 	oracleContract  *OracleContractWrapper
-	suiteG1         suites.Suite
-	suiteG2         suites.Suite
+	suite           pairing.Suite
 
 	ecdsaPrivateKey   *ecdsa.PrivateKey
 	PrivateKey        []kyber.Scalar
@@ -97,7 +96,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	// 	schnorrPrivateKey = append(schnorrPrivateKey, suite.G1().Scalar().Pick(random.New()))
 	// }
 	for i := int64(0); i < reputation; i++ {
-		privateKey = append(privateKey, suiteG2.Scalar().Pick(random.New()))
+		privateKey = append(privateKey, suite.G2().Scalar().Pick(random.New()))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("hex to scalar: %v", err)
@@ -131,7 +130,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	})
 
 	validator := NewValidator(
-		suiteG1,
+		suite,
 		oracleContractWrapper,
 		ecdsaPrivateKey,
 		sourceEthClient,
@@ -145,7 +144,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		reputation,
 	)
 	aggregator := NewAggregator(
-		suiteG1,
+		suite,
 		targetEthClient,
 		connectionManager,
 		oracleContractWrapper,
@@ -160,8 +159,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		targetEthClient: targetEthClient,
 		sourceEthClient: sourceEthClient,
 		oracleContract:  oracleContractWrapper,
-		suiteG1:         suiteG1,
-		suiteG2:         suiteG2,
+		suite:           suite,
 
 		ecdsaPrivateKey:   ecdsaPrivateKey,
 		PrivateKey:        privateKey,
@@ -218,13 +216,13 @@ func (n *OracleNode) register(ipAddr string) error {
 
 	schnorrPublicKey := make([]kyber.Point, 0)
 	for _, schnorrPrivateKey := range n.PrivateKey {
-		schnorrPublicKey = append(schnorrPublicKey, n.suiteG1.Point().Mul(schnorrPrivateKey, nil))
+		schnorrPublicKey = append(schnorrPublicKey, n.suite.G1().Point().Mul(schnorrPrivateKey, nil))
 	}
 
 	blsPublicKey := make([]kyber.Point, 0)
 	for _, privateKey := range n.PrivateKey {
 
-		blsPublicKey = append(blsPublicKey, n.suiteG2.Point().Mul(privateKey, nil))
+		blsPublicKey = append(blsPublicKey, n.suite.G2().Point().Mul(privateKey, nil))
 	}
 
 	bSchnorr := make([][2]*big.Int, 0) // schnorr
@@ -241,7 +239,6 @@ func (n *OracleNode) register(ipAddr string) error {
 	}
 
 	for _, publicKey := range blsPublicKey {
-		fmt.Println("publicKey: ", publicKey)
 
 		publicKeyToBig, err := G2PointToBig(publicKey)
 
@@ -282,14 +279,6 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
-		for _, bbBlsBig := range bBls {
-			_, err := n.oracleContract.IsOnCurve(auth, bbBlsBig)
-			if err != nil {
-				return fmt.Errorf("is on curve?: %w", err)
-			}
-			fmt.Println(bbBlsBig)
-		}
-		fmt.Println(bBls)
 		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, bBls, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
