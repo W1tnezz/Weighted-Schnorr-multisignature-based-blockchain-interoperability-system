@@ -129,7 +129,7 @@ contract OracleContract{
         delete oracleNodes[addr]; // 删除map键值对
     }
 
-    function countOracleNodes() internal view returns (uint256) {
+    function countOracleNodes() public view returns (uint256) {
         return oracleNodeIndices.length;
     }
 
