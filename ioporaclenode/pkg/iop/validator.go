@@ -161,11 +161,6 @@ func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, e
 		if err != nil {
 			fmt.Println("161 translate pk", err)
 		}
-		fmt.Println("163", v.privateKey)
-		for j, privateKey := range v.privateKey {
-			fmt.Println("165", pk.Equal(v.suite.G2().Point().Mul(privateKey, nil)), i, j)
-		}
-		fmt.Println("pk", pk, PKbytes, pubkey, v.suite.G2().Point().Mul(v.privateKey[i], nil))
 		fmt.Println("139", v.suite.Pair(_hash, pk).Equal(v.suite.Pair(sI, v.suite.G2().Point().Base())))
 		siBytes, _ := sI.MarshalBinary()
 		for _, b := range siBytes {

@@ -216,7 +216,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	}
 	switch typ {
 	case ValidateRequest_block:
-		_, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
+		// _, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
 	case ValidateRequest_transaction:
 		// _, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
 		_, err = a.oracleContract.SubmitValidationResultBLS(auth, 0, result, event.Hash, sig, hash, nodes)
@@ -491,14 +491,13 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 	PointByte := make([]byte, 0)
 
 	for _, z := range [4]int{1, 0, 3, 2} {
-		fmt.Println(z, PointBig)
 		bigByte := PointBig[z].Bytes()
 		for _, b := range bigByte {
 			PointByte = append(PointByte, b)
 		}
 
 	}
-	fmt.Println("493", len(PointByte))
+
 	pointS := a.suite.G2().Point()
 	err1 := pointS.UnmarshalBinary(PointByte)
 	if err1 != nil {
@@ -598,13 +597,13 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 			// bls
 
-			PKbytes := make([]byte, 128)
+			PKbytes := make([]byte, 0)
 
 			for _, z := range [4]int{1, 0, 3, 2} {
 				bigByte := PK[i][j][z].Bytes()
 				sub := 32 - len(bigByte)
 
-				bigByte = make([]byte, 128)
+				bigByte = make([]byte, 0)
 
 				for i := 0; i < sub; i++ {
 					bigByte = append(bigByte, 0)
@@ -635,7 +634,7 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 			aI := hash1.Sum(nil)
 
 			aScalar := a.suite.G1().Scalar().SetBytes(aI)
-			fmt.Println("629", a.suite.Pair(_hash, pk).Equal(a.suite.Pair(Signatures[i][j], a.suite.G2().Point().Base())))
+
 			MulSignature.Add(MulSignature, a.suite.G1().Point().Mul(aScalar, Signatures[i][j]))
 			MulY.Add(MulY, a.suite.G2().Point().Mul(aScalar, pk))
 

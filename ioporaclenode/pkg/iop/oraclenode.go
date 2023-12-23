@@ -224,8 +224,6 @@ func (n *OracleNode) register(ipAddr string) error {
 		blsPublicKey = append(blsPublicKey, n.suite.G2().Point().Mul(privateKey, nil))
 	}
 
-	fmt.Println("oracleNode", n.PrivateKey)
-
 	bSchnorr := make([][2]*big.Int, 0) // schnorr
 	bBls := make([][4]*big.Int, 0)     // bls
 
@@ -239,13 +237,13 @@ func (n *OracleNode) register(ipAddr string) error {
 		bSchnorr = append(bSchnorr, publicKeyToBig)
 	}
 
-	for i, publicKey := range blsPublicKey {
+	for _, publicKey := range blsPublicKey {
 		// publicKeyByte, _ := publicKey.MarshalBinary()
 
 		// p := n.suite.G2().Point()
 		// p.UnmarshalBinary(publicKeyByte)
 		// fmt.Println("246", p.Equal(publicKey), p, publicKey)
-		fmt.Println("248", publicKey.Equal(n.suite.G2().Point().Mul(n.PrivateKey[i], nil)))
+
 		publicKeyToBig, err := G2PointToBig(publicKey)
 		// PKbytes := make([]byte, 0)
 
@@ -305,7 +303,7 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
-		fmt.Println("308", bBls)
+
 		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, bBls, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
