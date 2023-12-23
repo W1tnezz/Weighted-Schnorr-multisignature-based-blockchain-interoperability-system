@@ -244,6 +244,10 @@ func (n *OracleNode) register(ipAddr string) error {
 		// p.UnmarshalBinary(publicKeyByte)
 		// fmt.Println("246", p.Equal(publicKey), p, publicKey)
 
+		log.Info(publicKey)
+		byte1 :=
+		log.Info(n.suite.G2().Point().Base().MarshalBinary(publicKey.UnmarshalBinary()))
+
 		publicKeyToBig, err := G2PointToBig(publicKey)
 
 		// publicKeyToByte := make([]byte, 0)
