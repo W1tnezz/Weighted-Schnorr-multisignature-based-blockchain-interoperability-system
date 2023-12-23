@@ -120,8 +120,8 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 
 	}
 
-	// return v.SignForSchnorr(message, enrollNodes)
-	return v.SignForBls(message, enrollNodes)
+	return v.SignForSchnorr(message, enrollNodes)
+	// return v.SignForBls(message, enrollNodes)
 
 }
 func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, error) {

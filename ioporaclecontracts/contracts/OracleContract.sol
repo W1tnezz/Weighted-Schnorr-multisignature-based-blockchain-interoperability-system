@@ -207,53 +207,53 @@ contract OracleContract{
     // }
 
     // 点加进行Hash恢复公钥，gas: 314596
-    // function submitValidationResult(
-    //     ValidationType _typ,
-    //     bool _result,
-    //     bytes32 message,
-    //     uint256 signature, uint256 rx , uint256 ry, uint256 _hash, 
-    //     address[] memory validators
-    // ) private {
-    //     require(_typ != ValidationType.UNKNOWN, "unknown validation type");
-    //     require(getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
+    function submitValidationResult(
+        ValidationType _typ,
+        bool _result,
+        bytes32 message,
+        uint256 signature, uint256 rx , uint256 ry, uint256 _hash, 
+        address[] memory validators
+    ) external {
+        // require(_typ != ValidationType.UNKNOWN, "unknown validation type");
+        // require(getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
     
-    //     uint256 totalRank = 0;
-    //     for(uint16 i = 0 ; i < validators.length ; i++){
-    //         // 验证单个节点的信誉值；
-    //         uint256 rank = getNodeRank(validators[i]);
-    //         require(rank >= currentRank, "low singal rank");
-    //         totalRank += rank;
-    //     }
-    //     require(totalRank >= currentRank, "low total rank");
+        // uint256 totalRank = 0;
+        // for(uint16 i = 0 ; i < validators.length ; i++){
+        //     // 验证单个节点的信誉值；
+        //     uint256 rank = getNodeRank(validators[i]);
+        //     require(rank >= currentRank, "low singal rank");
+        //     totalRank += rank;
+        // }
+        // require(totalRank >= currentRank, "low total rank");
             
-    //     // 公钥重新聚合
-    //     uint256 Sx = 0;
-    //     uint256 Sy = 0;
-    //     for(uint16 i = 0; i < validators.length; i++){
-    //         for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length; j++){
-    //             (Sx, Sy) = BN256G1.addPoint([Sx, Sy, oracleNodes[validators[i]].pubKeys[j][0], oracleNodes[validators[i]].pubKeys[j][1]]);
-    //         }
-    //     }
+         // 公钥重新聚合
+        uint256 Sx = 0;
+        uint256 Sy = 0;
+        for(uint16 i = 0; i < validators.length; i++){
+            for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length; j++){
+                (Sx, Sy) = BN256G1.addPoint([Sx, Sy, oracleNodes[validators[i]].pubKeys[j][0], oracleNodes[validators[i]].pubKeys[j][1]]);
+            }
+        }
     
-    //     uint256 pubKeyX = 0;
-    //     uint256 pubKeyY = 0;
-    //     for(uint16 i = 0; i < validators.length; i++){
-    //         for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length ; j++){
-    //             uint256 tempX = oracleNodes[validators[i]].pubKeys[j][0];
-    //             uint256 tempY = oracleNodes[validators[i]].pubKeys[j][1];
+        uint256 pubKeyX = 0;
+        uint256 pubKeyY = 0;
+        for(uint16 i = 0; i < validators.length; i++){
+            for(uint16 j = 0 ; j < oracleNodes[validators[i]].pubKeys.length ; j++){
+                uint256 tempX = oracleNodes[validators[i]].pubKeys[j][0];
+                uint256 tempY = oracleNodes[validators[i]].pubKeys[j][1];
 
-    //             uint256 pkX;
-    //             uint256 pkY;
-    //             (pkX, pkY) = BN256G1.addPoint([tempX, tempY, Sx, Sy]);
+                uint256 pkX;
+                uint256 pkY;
+                (pkX, pkY) = BN256G1.addPoint([tempX, tempY, Sx, Sy]);
                 
-    //             uint256 res = uint256(sha256(abi.encode(pkX, pkY)));
-    //             (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
-    //             (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
-    //         }
-    //     }
+                uint256 res = uint256(sha256(abi.encode(pkX, pkY)));
+                (tempX, tempY) = BN256G1.mulPoint([tempX, tempY, res]);
+                (pubKeyX, pubKeyY) = BN256G1.addPoint([tempX, tempY, pubKeyX, pubKeyY]);
+            }
+        }
 
     //     /*Schnorr签名的验证*/
-    //     require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+        require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
     //     // require(Schnorr.verify(signature, keyX, keyY, rx, ry, _hash), "sig: address doesn't match");
 
     //     if (_typ == ValidationType.BLOCK) {
@@ -264,58 +264,59 @@ contract OracleContract{
 
     //     // // 给当前合约的调用者（聚合器）转账 
     //     payable(msg.sender).transfer(AGGREGATE_FEE);     //此处完成给聚合器的报酬转账
-    //     // // 给所有的参与验证的验证器节点转账
+         // // 给所有的参与验证的验证器节点转账
 
-    //     for(uint32 i = 0 ; i < validators.length ; i++){
-    //         if(address(this).balance >= BASE_FEE * getNodeRank(validators[i])){
-    //             payable(validators[i]).transfer(BASE_FEE * getNodeRank(validators[i])); 
-    //         } else{
-    //             payable(validators[i]).transfer(address(this).balance); 
-    //         }
-    //     }
-    // }
-
-    function submitValidationResultBLS(
-        ValidationType _typ,
-        bool _result,
-        bytes32 message,
-        uint256[2] calldata _signature,
-        uint256[2] calldata _hash,
-        address[] memory validators
-    ) external {
-        uint256[4] memory S = getNodeBLSPublicKeysSum();
-        for(uint8 i = 0; i < validators.length; i++){
-            for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
-                (S[0], S[1], S[2], S[3]) = BN256G2.ecTwistAdd(S[0], S[1], S[2], S[3], oracleNodes[validators[i]].blsPubKeys[j][0], oracleNodes[validators[i]].blsPubKeys[j][1], oracleNodes[validators[i]].blsPubKeys[j][2], oracleNodes[validators[i]].blsPubKeys[j][3]);
-            }
-        }
-
-        uint256[4] memory publicKey = [uint256(0), 0, 0, 0];
-        for(uint8 i = 0; i < validators.length; i++){
-            for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
-                uint256[4] memory temp = oracleNodes[validators[i]].blsPubKeys[j];
-                uint256[4] memory pk;
-                (pk[0], pk[1], pk[2], pk[3]) = BN256G2.ecTwistAdd(temp[0], temp[1], temp[2], temp[3], S[0], S[1], S[2], S[3]);
-                uint256 res = uint256(sha256(abi.encode(pk[1], pk[0], pk[3], pk[2])));
-                (temp[0], temp[1], temp[2], temp[3]) = BN256G2.ecTwistMul(res, temp[0], temp[1], temp[2], temp[3]);
-                (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = BN256G2.ecTwistAdd(publicKey[0], publicKey[1], publicKey[2], publicKey[3], temp[0], temp[1], temp[2], temp[3]);
-            }
-        }
-        uint256[12] memory input =
-            [
-                _hash[0],
-                _hash[1],
-                publicKey[1],
-                publicKey[0],
-                publicKey[3],
-                publicKey[2],
-                _signature[0],
-                _signature[1],
-                G2_NEG_X_RE,
-                G2_NEG_X_IM,
-                G2_NEG_Y_RE,
-                G2_NEG_Y_IM
-            ];
-        // require(BN256G1.bn256CheckPairing(input), "invalid signature");
+        // for(uint32 i = 0 ; i < validators.length ; i++){
+        //     if(address(this).balance >= BASE_FEE * getNodeRank(validators[i])){
+        //         payable(validators[i]).transfer(BASE_FEE * getNodeRank(validators[i])); 
+        //     } else{
+        //         payable(validators[i]).transfer(address(this).balance); 
+        //     }
+        // }
     }
+
+    // function submitValidationResultBLS(
+    //     ValidationType _typ,
+    //     bool _result,
+    //     bytes32 message,
+    //     uint256[4] calldata publicKey,
+    //     uint256[2] calldata _signature,
+    //     uint256[2] calldata _hash,
+    //     address[] memory validators
+    // ) external {
+        // uint256[4] memory S = getNodeBLSPublicKeysSum();
+        // for(uint8 i = 0; i < validators.length; i++){
+        //     for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
+        //         (S[0], S[1], S[2], S[3]) = BN256G2.ecTwistAdd(S[0], S[1], S[2], S[3], oracleNodes[validators[i]].blsPubKeys[j][0], oracleNodes[validators[i]].blsPubKeys[j][1], oracleNodes[validators[i]].blsPubKeys[j][2], oracleNodes[validators[i]].blsPubKeys[j][3]);
+        //     }
+        // }
+
+        // uint256[4] memory publicKey = [uint256(0), 0, 0, 0];
+        // for(uint8 i = 0; i < validators.length; i++){
+        //     for(uint8 j = 0; j < oracleNodes[validators[i]].blsPubKeys.length; j++){
+        //         uint256[4] memory temp = oracleNodes[validators[i]].blsPubKeys[j];
+        //         uint256[4] memory pk;
+        //         (pk[0], pk[1], pk[2], pk[3]) = BN256G2.ecTwistAdd(temp[0], temp[1], temp[2], temp[3], S[0], S[1], S[2], S[3]);
+        //         uint256 res = uint256(sha256(abi.encode(pk[1], pk[0], pk[3], pk[2])));
+        //         (temp[0], temp[1], temp[2], temp[3]) = BN256G2.ecTwistMul(res, temp[0], temp[1], temp[2], temp[3]);
+        //         (publicKey[0], publicKey[1], publicKey[2], publicKey[3]) = BN256G2.ecTwistAdd(publicKey[0], publicKey[1], publicKey[2], publicKey[3], temp[0], temp[1], temp[2], temp[3]);
+        //     }
+        // }
+        // uint256[12] memory input =
+        //     [
+        //         _hash[0],
+        //         _hash[1],
+        //         publicKey[1],
+        //         publicKey[0],
+        //         publicKey[3],
+        //         publicKey[2],
+        //         _signature[0],
+        //         _signature[1],
+        //         G2_NEG_X_RE,
+        //         G2_NEG_X_IM,
+        //         G2_NEG_Y_RE,
+        //         G2_NEG_Y_IM
+        //     ];
+        // require(BN256G1.bn256CheckPairing(input), "invalid signature");
+    // }
 }

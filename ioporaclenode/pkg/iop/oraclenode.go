@@ -228,13 +228,13 @@ func (n *OracleNode) register(ipAddr string) error {
 	bBls := make([][4]*big.Int, 0)     // bls
 
 	for _, publicKey := range schnorrPublicKey {
-
 		publicKeyToBig, err := G1PointToBig(publicKey)
 
 		if err != nil {
 			return fmt.Errorf("marshal public key: %v", err)
 		}
 		bSchnorr = append(bSchnorr, publicKeyToBig)
+		log.Info(len(publicKeyToBig[0].Bytes()), " ", len(publicKeyToBig[1].Bytes()))
 	}
 
 	for _, publicKey := range blsPublicKey {
