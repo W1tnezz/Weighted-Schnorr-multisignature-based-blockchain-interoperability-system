@@ -18,18 +18,20 @@ import (
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/pairing"
+	"go.dedis.ch/kyber/v3/suites"
 	"google.golang.org/grpc"
 )
 
 type OracleNode struct {
 	UnsafeOracleNodeServer
-	server            *grpc.Server
-	serverLis         net.Listener
-	targetEthClient   *ethclient.Client
-	sourceEthClient   *ethclient.Client
-	oracleContract    *OracleContractWrapper
-	suite             pairing.Suite
+	server          *grpc.Server
+	serverLis       net.Listener
+	targetEthClient *ethclient.Client
+	sourceEthClient *ethclient.Client
+	oracleContract  *OracleContractWrapper
+	suiteG1         suites.Suite
+	suiteG2         suites.Suite
+
 	ecdsaPrivateKey   *ecdsa.PrivateKey
 	PrivateKey        []kyber.Scalar
 	account           common.Address
@@ -79,7 +81,8 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		return nil, fmt.Errorf("dist key contract: %v", err)
 	}
 
-	suite := bn256.NewSuiteG1()
+	suiteG1 := bn256.NewSuiteG1()
+	suiteG2 := bn256.NewSuiteG2()
 
 	ecdsaPrivateKey, err := crypto.HexToECDSA(c.Ethereum.PrivateKey)
 	if err != nil {
@@ -94,7 +97,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	// 	schnorrPrivateKey = append(schnorrPrivateKey, suite.G1().Scalar().Pick(random.New()))
 	// }
 	for i := int64(0); i < reputation; i++ {
-		privateKey = append(privateKey, suite.G2().Scalar().Pick(random.New()))
+		privateKey = append(privateKey, suiteG2.Scalar().Pick(random.New()))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("hex to scalar: %v", err)
@@ -128,7 +131,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 	})
 
 	validator := NewValidator(
-		suite,
+		suiteG1,
 		oracleContractWrapper,
 		ecdsaPrivateKey,
 		sourceEthClient,
@@ -142,7 +145,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		reputation,
 	)
 	aggregator := NewAggregator(
-		suite,
+		suiteG1,
 		targetEthClient,
 		connectionManager,
 		oracleContractWrapper,
@@ -152,12 +155,14 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		enrollNodes,
 	)
 	node := &OracleNode{
-		server:            server,
-		serverLis:         serverLis,
-		targetEthClient:   targetEthClient,
-		sourceEthClient:   sourceEthClient,
-		oracleContract:    oracleContractWrapper,
-		suite:             suite,
+		server:          server,
+		serverLis:       serverLis,
+		targetEthClient: targetEthClient,
+		sourceEthClient: sourceEthClient,
+		oracleContract:  oracleContractWrapper,
+		suiteG1:         suiteG1,
+		suiteG2:         suiteG2,
+
 		ecdsaPrivateKey:   ecdsaPrivateKey,
 		PrivateKey:        privateKey,
 		account:           account,
@@ -213,13 +218,13 @@ func (n *OracleNode) register(ipAddr string) error {
 
 	schnorrPublicKey := make([]kyber.Point, 0)
 	for _, schnorrPrivateKey := range n.PrivateKey {
-		schnorrPublicKey = append(schnorrPublicKey, n.suite.G1().Point().Mul(schnorrPrivateKey, nil))
+		schnorrPublicKey = append(schnorrPublicKey, n.suiteG1.Point().Mul(schnorrPrivateKey, nil))
 	}
 
 	blsPublicKey := make([]kyber.Point, 0)
 	for _, privateKey := range n.PrivateKey {
 
-		blsPublicKey = append(blsPublicKey, n.suite.G2().Point().Mul(privateKey, nil))
+		blsPublicKey = append(blsPublicKey, n.suiteG2.Point().Mul(privateKey, nil))
 	}
 
 	bSchnorr := make([][2]*big.Int, 0) // schnorr
