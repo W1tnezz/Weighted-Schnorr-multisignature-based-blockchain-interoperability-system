@@ -61,10 +61,10 @@ func G2PointToBig(point kyber.Point) ([4]*big.Int, error) {
 	}
 
 	return [4]*big.Int{
-		new(big.Int).SetBytes(b[:32]),
 		new(big.Int).SetBytes(b[32:64]),
-		new(big.Int).SetBytes(b[64:96]),
+		new(big.Int).SetBytes(b[:32]),
 		new(big.Int).SetBytes(b[96:128]),
+		new(big.Int).SetBytes(b[64:96]),
 	}, nil
 }
 

@@ -20,6 +20,7 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
 	"google.golang.org/grpc"
+
 )
 
 type OracleNode struct {
