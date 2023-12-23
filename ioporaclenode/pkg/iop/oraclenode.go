@@ -240,6 +240,10 @@ func (n *OracleNode) register(ipAddr string) error {
 
 	for _, publicKey := range blsPublicKey {
 
+		log.Info(publicKey)
+		byte1 :=
+		log.Info(n.suite.G2().Point().Base().MarshalBinary(publicKey.UnmarshalBinary()))
+
 		publicKeyToBig, err := G2PointToBig(publicKey)
 
 		// publicKeyToByte := make([]byte, 0)

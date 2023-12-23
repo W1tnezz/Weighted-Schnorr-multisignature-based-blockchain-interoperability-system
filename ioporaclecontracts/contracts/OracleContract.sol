@@ -333,7 +333,7 @@ function submitValidationResultBLS(
         uint256[2] calldata _signature,
         uint256[2] calldata _hash,
         address[] memory validators
-    ) private {
+    ) external {
 
         uint256[2] memory hash = BN256G1.hashToPointSha256(abi.encode(_hash, _result, _typ));
         uint256[4] memory S = getNodeBLSPublicKeysSum();
