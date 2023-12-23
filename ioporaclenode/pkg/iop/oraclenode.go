@@ -279,6 +279,11 @@ func (n *OracleNode) register(ipAddr string) error {
 	auth.Value = minStake.Mul(minStake, reputation)
 
 	if !isRegistered {
+		for _, bbBlsBig := range bBls {
+			n.oracleContract.IsOnCurve(nil, bbBlsBig)
+			fmt.Println(bbBlsBig)
+		}
+		fmt.Println(bBls)
 		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, bBls, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
