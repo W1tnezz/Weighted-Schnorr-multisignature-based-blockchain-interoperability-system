@@ -80,7 +80,7 @@ func NewOracleNode(c Config) (*OracleNode, error) {
 		return nil, fmt.Errorf("dist key contract: %v", err)
 	}
 
-	suite := bn256.NewSuiteG2()
+	suite := bn256.NewSuite()
 
 	ecdsaPrivateKey, err := crypto.HexToECDSA(c.Ethereum.PrivateKey)
 	if err != nil {
