@@ -61,11 +61,24 @@ library BN256G2 {
     {
         if (pt1xx == 0 && pt1xy == 0 && pt1yx == 0 && pt1yy == 0) {
             if (!(pt2xx == 0 && pt2xy == 0 && pt2yx == 0 && pt2yy == 0)) {
+                require(
+                    _isOnCurve(pt2xx, pt2xy, pt2yx, pt2yy),
+                    "point not in curve"
+                );
             }
             return (pt2xx, pt2xy, pt2yx, pt2yy);
         } else if (pt2xx == 0 && pt2xy == 0 && pt2yx == 0 && pt2yy == 0) {
+            require(
+                _isOnCurve(pt1xx, pt1xy, pt1yx, pt1yy),
+                "point not in curve"
+            );
             return (pt1xx, pt1xy, pt1yx, pt1yy);
         }
+
+        require(_isOnCurve(pt1xx, pt1xy, pt1yx, pt1yy), "point not in curve");
+
+        require(_isOnCurve(pt2xx, pt2xy, pt2yx, pt2yy), "point not in curve");
+
         uint256[6] memory pt3 = ecTwistAddJacobian(
             pt1xx,
             pt1xy,
