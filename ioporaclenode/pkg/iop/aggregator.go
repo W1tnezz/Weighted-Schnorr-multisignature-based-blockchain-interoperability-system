@@ -480,10 +480,10 @@ func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRe
 
 	pkSet := make([][4]*big.Int, 0)
 
-	PointBig, err := a.oracleContract.GetNodeBLSPublicKeysSub(nil)
+	PointBig, err := a.oracleContract.GetNodeBLSPublicKeysSum(nil)
 
 	if err != nil {
-		fmt.Println("GetNodeBLSPublicKeysSub : ", err, PointBig)
+		fmt.Println("GetNodeBLSPublicKeysSum : ", err, PointBig)
 	}
 
 	PointByte := make([]byte, 0)
