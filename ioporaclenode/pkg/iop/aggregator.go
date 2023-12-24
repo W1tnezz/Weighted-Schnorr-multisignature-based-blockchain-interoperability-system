@@ -219,7 +219,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	case ValidateRequest_block:
 		// _, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitValidationResult(auth, event.Typ,  result, event.Hash, sig, R[0], R[1], hash, nodes)
+		_, err = a.oracleContract.SubmitValidationResult2(auth, event.Typ,  result, event.Hash, sig,pk[0], pk[1], R[0], R[1], hash, nodes, pkSet)
 		// _, err = a.oracleContract.SubmitValidationResult(auth, 0, result, event.Hash, pk, sig, hash, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s")

@@ -319,4 +319,46 @@ contract OracleContract{
         //     ];
         // require(BN256G1.bn256CheckPairing(input), "invalid signature");
     // }
+
+    // 直接上传多重公钥，以及签名者公钥集合 gas: 273551
+    function submitValidationResult2(
+        ValidationType _typ,
+        bool _result,
+        bytes32 message,
+        uint256 signature,uint256 pubKeyX, uint256 pubKeyY, uint256 rx , uint256 ry, uint256 _hash, 
+        address[] memory validators, uint256[2][] memory pubKeyArray
+    ) external {
+        // require(_typ != ValidationType.UNKNOWN, "unknown validation type");
+        // require(getAggregator() == msg.sender, "not the aggregator");  //判断当前合约的调用者是不是聚合器
+        require(pubKeyArray.length >= currentRank, "low total rank");
+        uint32 index = 0;
+        for(uint16 i = 0 ; i < validators.length ; i++){
+            // 验证单个节点的信誉值；
+            uint256[2][] memory keys = getNodePublicKeys(validators[i]);
+            require(keys.length >= currentRank, "low singal rank");
+            
+            for(uint16 j = 0; j < keys.length; j++){
+                require(pubKeyArray[index][0] == keys[j][0] && pubKeyArray[index][1] == keys[j][1], "pubkey not equal!");
+                index++;
+            }
+        }
+        /*Schnorr签名的验证*/
+        require(Schnorr.verify(signature, pubKeyX, pubKeyY, rx, ry, _hash), "sig: address doesn't match");
+
+        // if (_typ == ValidationType.BLOCK) {
+        //     blockValidationResults[message] = _result;
+        // } else if (_typ == ValidationType.TRANSACTION) {
+        //     txValidationResults[message] = _result;
+        // }
+        // // 给当前合约的调用者（聚合器）转账 
+        // payable(msg.sender).transfer(AGGREGATE_FEE);     //此处完成给聚合器的报酬转账
+        // // 给所有的参与验证的验证器节点转账
+        // for(uint32 i = 0 ; i < validators.length ; i++){
+        //     if(address(this).balance >= BASE_FEE * getNodeRank(validators[i])){
+        //         payable(validators[i]).transfer(BASE_FEE * getNodeRank(validators[i])); 
+        //     } else{
+        //         payable(validators[i]).transfer(address(this).balance); 
+        //     }
+        // }
+    }
 }
