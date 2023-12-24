@@ -304,7 +304,7 @@ func (n *OracleNode) register(ipAddr string) error {
 
 	if !isRegistered {
 
-		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, bBls, big.NewInt(n.reputation))
+		_, err = n.oracleContract.RegisterOracleNode(auth, ipAddr, bSchnorr, big.NewInt(n.reputation))
 		if err != nil {
 			return fmt.Errorf("register iop node: %w", err)
 		}

@@ -124,52 +124,52 @@ func (v *Validator) Sign(message []byte) ([][]byte, error) {
 	// return v.SignForBls(message, enrollNodes)
 
 }
-func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, error) {
-	hash := sha256.New()
-	hash.Write(message)
+// func (v *Validator) SignForBls(message []byte, enrollNodes []int64) ([][]byte, error) {
+// 	hash := sha256.New()
+// 	hash.Write(message)
 
-	messageHash := hash.Sum(nil)
+// 	messageHash := hash.Sum(nil)
 
-	_hash := v.suite.G1().Point().Mul(v.suite.G1().Scalar().SetBytes(messageHash), nil)
+// 	_hash := v.suite.G1().Point().Mul(v.suite.G1().Scalar().SetBytes(messageHash), nil)
 
-	signature := make([][]byte, 2)
-	node, _ := v.oracleContract.FindOracleNodeByAddress(nil, v.account)
+// 	signature := make([][]byte, 2)
+// 	node, _ := v.oracleContract.FindOracleNodeByAddress(nil, v.account)
 
-	for i := int64(0); i < v.reputation; i++ {
-		sI := v.suite.G1().Point().Mul(v.privateKey[i], _hash)
-		pubkey := node.BlsPubKeys[i]
-		fmt.Println("141", pubkey)
+// 	for i := int64(0); i < v.reputation; i++ {
+// 		sI := v.suite.G1().Point().Mul(v.privateKey[i], _hash)
+// 		pubkey := node.BlsPubKeys[i]
+// 		fmt.Println("141", pubkey)
 
-		PKbytes := make([]byte, 0)
+// 		PKbytes := make([]byte, 0)
 
-		for _, z := range [4]int{1, 0, 3, 2} {
+// 		for _, z := range [4]int{1, 0, 3, 2} {
 
-			sub := 32 - len(pubkey[z].Bytes())
+// 			sub := 32 - len(pubkey[z].Bytes())
 
-			bigByte := make([]byte, sub)
+// 			bigByte := make([]byte, sub)
 
-			// for i := 0; i < sub; i++ {
-			// 	bigByte = append(bigByte, 0)
-			// }
+// 			// for i := 0; i < sub; i++ {
+// 			// 	bigByte = append(bigByte, 0)
+// 			// }
 
-			bigByte = append(bigByte, pubkey[z].Bytes()...)
-			PKbytes = append(PKbytes, bigByte...)
+// 			bigByte = append(bigByte, pubkey[z].Bytes()...)
+// 			PKbytes = append(PKbytes, bigByte...)
 
-		}
-		pk := v.suite.G2().Point()
-		err := pk.UnmarshalBinary(PKbytes)
-		if err != nil {
-			fmt.Println("161 translate pk", err)
-		}
-		fmt.Println("139", v.suite.Pair(_hash, pk).Equal(v.suite.Pair(sI, v.suite.G2().Point().Base())))
-		siBytes, _ := sI.MarshalBinary()
-		for _, b := range siBytes {
-			signature[0] = append(signature[0], b)
-		}
-	}
-	return signature, nil
+// 		}
+// 		pk := v.suite.G2().Point()
+// 		err := pk.UnmarshalBinary(PKbytes)
+// 		if err != nil {
+// 			fmt.Println("161 translate pk", err)
+// 		}
+// 		fmt.Println("139", v.suite.Pair(_hash, pk).Equal(v.suite.Pair(sI, v.suite.G2().Point().Base())))
+// 		siBytes, _ := sI.MarshalBinary()
+// 		for _, b := range siBytes {
+// 			signature[0] = append(signature[0], b)
+// 		}
+// 	}
+// 	return signature, nil
 
-}
+// }
 
 func (v *Validator) SignForSchnorr(message []byte, enrollNodes []int64) ([][]byte, error) {
 	// 先产生自己的R，然后在等待一段时间，随后广播, 构造R序列

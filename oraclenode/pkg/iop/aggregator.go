@@ -219,7 +219,7 @@ func (a *Aggregator) HandleValidationRequest(ctx context.Context, event *OracleC
 	case ValidateRequest_block:
 		// _, err = a.oracleContract.SubmitBlockValidationResult(auth, result, event.Hash, big.NewInt(0), hash[0], hash[1], big.NewInt(0), nodes)
 	case ValidateRequest_transaction:
-		_, err = a.oracleContract.SubmitValidationResult2(auth, event.Typ,  result, event.Hash, sig,pk[0], pk[1], R[0], R[1], hash, nodes, pkSet)
+		_, err = a.oracleContract.SubmitTransactionValidationResult(auth, result, event.Hash, sig, R[0], R[1], hash, nodes)
 		// _, err = a.oracleContract.SubmitValidationResult(auth, 0, result, event.Hash, pk, sig, hash, nodes)
 	default:
 		return fmt.Errorf("unknown validation request type %s")
@@ -489,11 +489,12 @@ func (a *Aggregator) AggregateSignatureForSchnorr(txHash common.Hash, typ Valida
 func (a *Aggregator) AggregateSignatureForBLS(txHash common.Hash, typ ValidateRequest_Type, Signatures [][]kyber.Point, PK [][][4]*big.Int, nodes []common.Address, totalRank int64) (bool, kyber.Point, kyber.Point, kyber.Point, []common.Address, [][2]*big.Int, error) {
 	pkSet := make([][4]*big.Int, 0)
 
-	PointBig, err := a.oracleContract.GetNodeBLSPublicKeysSum(nil)
+	// PointBig, err := a.oracleContract.GetNodeBLSPublicKeysSum(nil)
+	PointBig := new([4]*big.Int)
 
-	if err != nil {
-		fmt.Println("GetNodeBLSPublicKeysSum : ", err, PointBig)
-	}
+	// if err != nil {
+	// 	fmt.Println("GetNodeBLSPublicKeysSum : ", err, PointBig)
+	// }
 
 	PointByte := make([]byte, 0)
 

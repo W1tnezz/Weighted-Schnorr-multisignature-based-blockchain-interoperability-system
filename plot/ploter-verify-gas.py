@@ -12,8 +12,9 @@ import numpy as np
 def appendArr(arr, num, a, base):
     # cost = ax + b
     for i in range(num):
-        element = i * a + base
-        arr.append(element)
+        if(i % 2 == 1):
+            element = i * a + base
+            arr.append(element)
 
 sig_nums = []
 ecdsa_verify_costs = []
@@ -24,8 +25,8 @@ bls_real_cost = []
 ecdsa_base = 0
 ecdsa_a = 4359
 
-bls_base = 145192
-bls_a = 19366
+bls_base = 145192 + 15000
+bls_a = 16666
 
 schnorr_base = 48115
 schnorr_a = 16666
@@ -46,21 +47,21 @@ print(len(sig_nums))
 fig, ax = plt.subplots()
 # font = font_manager.FontProperties(fname="/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf")
 
-plt.plot(sig_nums[2:41], ecdsa_verify_costs[2:41],  color='deepskyblue', label="ECDSA")
-plt.plot(sig_nums[2:41], bls_verify_costs[2:41],  color='red', label="BLS-RSMSP")
-plt.plot(sig_nums[2:41], schnorr_verify_costs[2:41],  color='green', label="Schnorr-multi")
+# plt.plot(sig_nums[2:41], ecdsa_verify_costs[2:41],  color='deepskyblue', label="ECDSA")
+plt.plot(sig_nums[0:15], bls_verify_costs[0:15],  color='red', label="Weighted BLS-multi", marker = "*")
+plt.plot(sig_nums[0:15], schnorr_verify_costs[0:15],  color='green', label="Weighted Schnorr-multi", marker = "^")
 
 
 plt.gcf().subplots_adjust(left=0.15,top=0.9,bottom=0.1)
-plt.xlabel("Number of signatures")  # 横坐标名字
+plt.xlabel("Total weight-value")  # 横坐标名字
 plt.ylabel("Gas consumption")  # 纵坐标名字
 plt.legend()
-my_x_ticks = np.arange(0, 41, 5)
-my_y_ticks = np.arange(0, 1000000, 100000)
+my_x_ticks = np.arange(0, 31, 5)
+my_y_ticks = np.arange(0, 700001, 100000)
 plt.xticks(my_x_ticks)
 plt.yticks(my_y_ticks)
-plt.grid()
-fig.savefig('./figure/链上聚合公钥签名验证gas消耗对比.svg', dpi=3200, format='svg')
+# plt.grid()
+fig.savefig('./figures/链上聚合公钥签名验证gas消耗对比.svg', dpi=3200, format='svg')
 
 
 
