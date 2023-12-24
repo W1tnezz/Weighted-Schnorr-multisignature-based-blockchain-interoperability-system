@@ -1,2 +1,2 @@
-# Subgroup-Schnorr-multi-signature-based-blockchain-interoperability-oracle
+# Weighted Schnorr multisignature based blockchain interoperability system
 
